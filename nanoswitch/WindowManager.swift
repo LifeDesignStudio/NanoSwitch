@@ -6,6 +6,7 @@ struct WindowInfo {
     let windowTitle: String
     let ownerPID: pid_t
     let app: NSRunningApplication
+    let bounds: CGRect
 }
 
 class WindowManager {
@@ -54,6 +55,7 @@ class WindowManager {
     func updateWindowList() {
         let options = CGWindowListOption([.optionOnScreenOnly, .excludeDesktopElements])
         guard let rawList = CGWindowListCopyWindowInfo(options, kCGNullWindowID) as? [[String: Any]] else {
+            print("[NanoSwitch] ⚠️ CGWindowListCopyWindowInfo 失敗")
             return
         }
 
@@ -65,8 +67,19 @@ class WindowManager {
             // レイヤー 0（通常ウィンドウ）のみ
             guard let layer = info[kCGWindowLayer as String] as? Int, layer == 0 else { continue }
 
-            // オンスクリーンのみ
+            // オンスクリーンのみ（kCGWindowIsOnscreen が存在しない場合は false 扱い）
             guard let isOnscreen = info[kCGWindowIsOnscreen as String] as? Bool, isOnscreen else { continue }
+
+            // alpha=0 の不可視ウィンドウ（アプリ内部ウィンドウ等）を除外
+            guard let alpha = info[kCGWindowAlpha as String] as? Double, alpha > 0 else { continue }
+
+            // bounds 取得（極小ウィンドウ除外 & フォールバック照合用）
+            var windowBounds = CGRect.zero
+            if let bd = info[kCGWindowBounds as String] as? [String: CGFloat] {
+                windowBounds = CGRect(x: bd["X"] ?? 0, y: bd["Y"] ?? 0,
+                                     width: bd["Width"] ?? 0, height: bd["Height"] ?? 0)
+                guard windowBounds.width >= 100 && windowBounds.height >= 60 else { continue }
+            }
 
             guard let windowID = info[kCGWindowNumber as String] as? CGWindowID,
                   let pid = info[kCGWindowOwnerPID as String] as? pid_t else { continue }
@@ -80,18 +93,20 @@ class WindowManager {
                           ?? "Unknown"
             let windowTitle = info[kCGWindowName as String] as? String ?? ""
 
-            let windowInfo = WindowInfo(
+            newWindows.append(WindowInfo(
                 windowID: windowID,
                 appName: appName,
                 windowTitle: windowTitle,
                 ownerPID: pid,
-                app: app
-            )
-            newWindows.append(windowInfo)
+                app: app,
+                bounds: windowBounds
+            ))
         }
 
-        DispatchQueue.main.async {
-            self.windows = newWindows
-        }
+        // 同期的に更新（呼び出し元は常にメインスレッド）
+        // ※ 以前は DispatchQueue.main.async で遅延していたため、
+        //   直後の getWindows() が古いリストを返すバグがあった
+        windows = newWindows
+        print("[NanoSwitch] ウィンドウリスト更新: \(windows.count) 件 \(windows.map { $0.appName })")
     }
 }

@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- メニューバー専用アプリ（Dockアイコン非表示） -->
+	<key>LSUIElement</key>
+	<true/>
+	<!-- アプリのエントリポイント -->
+	<key>NSPrincipalClass</key>
+	<string>NSApplication</string>
+	<key>NSMainStoryboardFile</key>
+	<string></string>
+	<key>NSAccessibilityUsageDescription</key>
+	<string>ウィンドウの監視と切り替えに使用します</string>
+	<key>NSScreenCaptureUsageDescription</key>
+	<string>ウィンドウのサムネイル表示に使用します</string>
+</dict>
+</plist>
