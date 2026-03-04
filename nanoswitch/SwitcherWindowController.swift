@@ -1,5 +1,10 @@
 import Cocoa
 
+// Private API: AXUIElement から CGWindowID を直接取得（AXWindowID 属性未公開アプリにも対応）
+@_silgen_name("_AXUIElementGetWindow")
+private func _AXUIElementGetWindow(_ element: AXUIElement,
+                                    _ windowID: UnsafeMutablePointer<CGWindowID>) -> AXError
+
 class SwitcherWindowController {
 
     private var panel: NSPanel?
@@ -104,14 +109,11 @@ class SwitcherWindowController {
 
     // MARK: - Window Activation
 
-    /// 公式属性 "AXWindowID" で CGWindowID を取得する（プライベートAPI不使用）
+    /// _AXUIElementGetWindow で CGWindowID を取得する（Chrome など AXWindowID 属性未公開アプリにも対応）
     private func cgWindowID(for axWindow: AXUIElement) -> CGWindowID? {
-        var value: CFTypeRef?
-        guard AXUIElementCopyAttributeValue(axWindow,
-                                            "AXWindowID" as CFString,
-                                            &value) == .success,
-              let number = value as? NSNumber else { return nil }
-        return CGWindowID(number.uint32Value)
+        var wid: CGWindowID = 0
+        guard _AXUIElementGetWindow(axWindow, &wid) == .success, wid != 0 else { return nil }
+        return wid
     }
 
     private func activateWindow(_ windowInfo: WindowInfo) {
@@ -141,7 +143,10 @@ class SwitcherWindowController {
                 }
 
                 // 3rd: 位置・サイズでフォールバック（Chrome の複数ウィンドウ対応）
+                // CGWindowBounds は CG座標系（Y: 上→下）、AXFrame は Cocoa座標系（Y: 下→上）なので変換が必要
                 if target == nil, let bounds = freshBounds, bounds != .zero {
+                    let primaryHeight = NSScreen.screens.first?.frame.height ?? 0
+                    let cocoaY = primaryHeight - bounds.origin.y - bounds.height
                     target = axWindows.first(where: {
                         var frameRef: CFTypeRef?
                         guard AXUIElementCopyAttributeValue($0, "AXFrame" as CFString, &frameRef) == .success,
@@ -150,9 +155,9 @@ class SwitcherWindowController {
                         var axFrame = CGRect.zero
                         AXValueGetValue(axVal as! AXValue, .cgRect, &axFrame)
                         return abs(axFrame.origin.x - bounds.origin.x) < 10 &&
-                               abs(axFrame.origin.y - bounds.origin.y) < 10 &&
-                               abs(axFrame.width  - bounds.width)  < 10 &&
-                               abs(axFrame.height - bounds.height) < 10
+                               abs(axFrame.origin.y - cocoaY)          < 10 &&
+                               abs(axFrame.width    - bounds.width)     < 10 &&
+                               abs(axFrame.height   - bounds.height)    < 10
                     })
                 }
             }
