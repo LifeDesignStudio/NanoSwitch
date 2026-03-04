@@ -44,6 +44,10 @@ class WindowManager {
                        selector: #selector(handleAppNotification(_:)),
                        name: NSWorkspace.didTerminateApplicationNotification,
                        object: nil)
+        nc.addObserver(self,
+                       selector: #selector(handleAppNotification(_:)),
+                       name: NSWorkspace.activeSpaceDidChangeNotification,
+                       object: nil)
     }
 
     @objc private func handleAppNotification(_ notification: Notification) {
@@ -67,7 +71,7 @@ class WindowManager {
             // レイヤー 0（通常ウィンドウ）のみ
             guard let layer = info[kCGWindowLayer as String] as? Int, layer == 0 else { continue }
 
-            // オンスクリーンのみ（kCGWindowIsOnscreen が存在しない場合は false 扱い）
+            // オンスクリーンのみ（最小化・他 Space のウィンドウを除外）
             guard let isOnscreen = info[kCGWindowIsOnscreen as String] as? Bool, isOnscreen else { continue }
 
             // alpha=0 の不可視ウィンドウ（アプリ内部ウィンドウ等）を除外

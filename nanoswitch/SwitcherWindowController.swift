@@ -1,9 +1,10 @@
 import Cocoa
 
 // Private API: AXUIElement から CGWindowID を直接取得（AXWindowID 属性未公開アプリにも対応）
+// internal にして WindowManager からも参照できるようにする
 @_silgen_name("_AXUIElementGetWindow")
-private func _AXUIElementGetWindow(_ element: AXUIElement,
-                                    _ windowID: UnsafeMutablePointer<CGWindowID>) -> AXError
+func _AXUIElementGetWindow(_ element: AXUIElement,
+                            _ windowID: UnsafeMutablePointer<CGWindowID>) -> AXError
 
 class SwitcherWindowController {
 
