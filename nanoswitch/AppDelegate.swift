@@ -39,7 +39,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         print("[NanoSwitch] Screen Recording権限: \(hasScreenRecording ? "✅ 許可済み" : "⚠️ 未許可（サムネイルはアイコンにフォールバック）")")
 
         windowManager = WindowManager()
-        eventTapManager = EventTapManager(windowManager: windowManager!)
+        guard let wm = windowManager else {
+            print("[NanoSwitch] ❌ WindowManager の初期化に失敗")
+            return
+        }
+        eventTapManager = EventTapManager(windowManager: wm)
 
         print("[NanoSwitch] ✅ 初期化完了")
     }

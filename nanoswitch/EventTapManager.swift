@@ -9,8 +9,6 @@ class EventTapManager {
     private let switcherController = SwitcherWindowController()
     private let thumbnailFetcher = ThumbnailFetcher()
 
-    private var isSwitcherVisible = false
-
     // MARK: - Init / Deinit
 
     init(windowManager: WindowManager) {
@@ -73,7 +71,7 @@ class EventTapManager {
 
         // Cmd 離し → 選択確定
         if type == .flagsChanged {
-            if !event.flags.contains(.maskCommand) && isSwitcherVisible {
+            if !event.flags.contains(.maskCommand) && switcherController.isVisible {
                 DispatchQueue.main.async { [weak self] in self?.confirmSelection() }
             }
             return Unmanaged.passRetained(event)
@@ -96,7 +94,7 @@ class EventTapManager {
         }
 
         // スイッチャー表示中のみナビゲーションキーを横取り
-        guard isSwitcherVisible else { return Unmanaged.passRetained(event) }
+        guard switcherController.isVisible else { return Unmanaged.passRetained(event) }
 
         switch keyCode {
         case 36: // Return
@@ -139,19 +137,18 @@ class EventTapManager {
             return
         }
 
-        if !isSwitcherVisible {
+        if !switcherController.isVisible {
             var initialThumbnails: [CGWindowID: NSImage] = [:]
             for w in windows {
                 if let icon = w.app.icon { initialThumbnails[w.windowID] = icon }
             }
-            isSwitcherVisible = true
             NSLog("[NanoSwitch] SwitcherWindowController.show() 呼び出し")
             switcherController.show(windows: windows,
                                     thumbnails: initialThumbnails,
                                     startAtEnd: reverse)
 
             thumbnailFetcher.fetchThumbnails(for: windows) { [weak self] thumbnails in
-                guard let self, self.isSwitcherVisible else { return }
+                guard let self, self.switcherController.isVisible else { return }
                 let merged = initialThumbnails.merging(thumbnails) { _, new in new }
                 self.switcherController.updateThumbnails(merged)
             }
@@ -162,14 +159,12 @@ class EventTapManager {
 
     private func confirmSelection() {
         NSLog("[NanoSwitch] 選択確定")
-        isSwitcherVisible = false
         thumbnailFetcher.cancel()
         switcherController.activateSelectedWindow()
     }
 
     private func cancelSwitcher() {
         NSLog("[NanoSwitch] キャンセル")
-        isSwitcherVisible = false
         thumbnailFetcher.cancel()
         switcherController.dismiss()
     }

@@ -25,7 +25,7 @@ class WindowManager {
     // MARK: - Public
 
     func getWindows() -> [WindowInfo] {
-        return windows
+        windows
     }
 
     // MARK: - Notifications

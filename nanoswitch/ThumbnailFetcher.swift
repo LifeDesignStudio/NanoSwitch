@@ -14,12 +14,12 @@ class ThumbnailFetcher {
         workItem?.cancel()
         print("[NanoSwitch] ThumbnailFetcher 取得開始 - \(windows.count) 件")
 
-        var item: DispatchWorkItem!
+        var item: DispatchWorkItem?
         item = DispatchWorkItem {
             var thumbnails: [CGWindowID: NSImage] = [:]
 
             for windowInfo in windows {
-                guard !item.isCancelled else { break }
+                if item?.isCancelled == true { break }
 
                 if let cgImage = CGWindowListCreateImage(
                     .null,
@@ -35,7 +35,7 @@ class ThumbnailFetcher {
                 }
             }
 
-            guard !item.isCancelled else {
+            if item?.isCancelled == true {
                 print("[NanoSwitch] ThumbnailFetcher キャンセル")
                 return
             }
@@ -45,7 +45,7 @@ class ThumbnailFetcher {
         }
 
         workItem = item
-        DispatchQueue.global(qos: .userInteractive).async(execute: item)
+        if let item { DispatchQueue.global(qos: .userInteractive).async(execute: item) }
     }
 
     // アスペクト比を維持しつつ maxSize に収まるようリサイズ（拡大はしない）

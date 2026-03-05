@@ -4,10 +4,10 @@ class SwitcherView: NSView {
 
     // MARK: - Constants
 
-    private let cellWidth: CGFloat = 220
-    private let cellHeight: CGFloat = 190
-    private let thumbnailHeight: CGFloat = 150
-    private let padding: CGFloat = 12
+    private static let cellWidth: CGFloat = 220
+    private static let cellHeight: CGFloat = 190
+    private static let thumbnailHeight: CGFloat = 150
+    private static let padding: CGFloat = 12
     static let maxColumns: Int = 5
 
     // MARK: - State
@@ -30,9 +30,10 @@ class SwitcherView: NSView {
         self.windows = windows
         self.thumbnails = thumbnails
         if selectedIndex >= windows.count {
-            selectedIndex = max(0, windows.count - 1)
+            selectedIndex = max(0, windows.count - 1)  // didSet triggers needsDisplay
+        } else {
+            needsDisplay = true
         }
-        needsDisplay = true
     }
 
     func moveSelection(by delta: Int) {
@@ -118,11 +119,11 @@ class SwitcherView: NSView {
         let row = index / Self.maxColumns
         let totalRows = (windows.count + Self.maxColumns - 1) / Self.maxColumns
 
-        let x = padding + CGFloat(column) * (cellWidth + padding)
+        let x = SwitcherView.padding + CGFloat(column) * (SwitcherView.cellWidth + SwitcherView.padding)
         // NSView は y=0 が下端なので上段ほど大きい y 値
-        let y = CGFloat(totalRows - 1 - row) * (cellHeight + padding) + padding
+        let y = CGFloat(totalRows - 1 - row) * (SwitcherView.cellHeight + SwitcherView.padding) + SwitcherView.padding
 
-        return NSRect(x: x, y: y, width: cellWidth, height: cellHeight)
+        return NSRect(x: x, y: y, width: SwitcherView.cellWidth, height: SwitcherView.cellHeight)
     }
 
     private func drawCell(windowInfo: WindowInfo, at frame: NSRect, isSelected: Bool) {
@@ -146,7 +147,7 @@ class SwitcherView: NSView {
             x: frame.minX + 8,
             y: frame.minY + 40,
             width: frame.width - 16,
-            height: thumbnailHeight
+            height: SwitcherView.thumbnailHeight
         )
 
         if let thumbnail = thumbnails[windowInfo.windowID] {
@@ -186,9 +187,9 @@ class SwitcherView: NSView {
     // MARK: - Size Calculation
 
     static func preferredSize(for windowCount: Int,
-                               cellWidth: CGFloat = 220,
-                               cellHeight: CGFloat = 190,
-                               padding: CGFloat = 12,
+                               cellWidth: CGFloat = SwitcherView.cellWidth,
+                               cellHeight: CGFloat = SwitcherView.cellHeight,
+                               padding: CGFloat = SwitcherView.padding,
                                maxColumns: Int = SwitcherView.maxColumns) -> NSSize {
         guard windowCount > 0 else { return NSSize(width: 260, height: 220) }
         let columns = min(windowCount, maxColumns)
