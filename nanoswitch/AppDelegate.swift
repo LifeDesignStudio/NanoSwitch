@@ -19,24 +19,29 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     // MARK: - Permission Check & Startup
 
     private func startIfPermitted() {
-        // Accessibility 権限チェック（未許可の場合はダイアログを表示）
-        let axTrusted = AXIsProcessTrustedWithOptions(
-            [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true] as CFDictionary)
-        print("[NanoSwitch] Accessibility権限: \(axTrusted ? "✅ 許可済み" : "❌ 未許可")")
-
-        guard axTrusted else {
-            // 自動終了せず、メニューに案内を表示してユーザーが再起動できるようにする
-            print("[NanoSwitch] ⚠️ Accessibility未許可 → システム設定で許可後、アプリを再起動してください")
+        guard AXIsProcessTrustedWithOptions(nil) else {
+            print("[NanoSwitch] Accessibility権限: ❌ 未許可")
+            // 未許可のときだけシステムダイアログを表示
+            AXIsProcessTrustedWithOptions(
+                [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true] as CFDictionary)
             updateMenuForMissingPermission()
+            pollForAccessibilityPermission()
             return
         }
+        completeSetup()
+    }
 
-        // Screen Recording 権限チェック（サムネイル取得に必要、任意）
-        if !CGPreflightScreenCaptureAccess() {
-            CGRequestScreenCaptureAccess()
+    /// システム設定でアクセシビリティを許可するまで1秒ごとに確認する（再起動不要）
+    private func pollForAccessibilityPermission() {
+        Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] timer in
+            guard AXIsProcessTrustedWithOptions(nil) else { return }
+            timer.invalidate()
+            self?.completeSetup()
         }
-        let hasScreenRecording = CGPreflightScreenCaptureAccess()
-        print("[NanoSwitch] Screen Recording権限: \(hasScreenRecording ? "✅ 許可済み" : "⚠️ 未許可（サムネイルはアイコンにフォールバック）")")
+    }
+
+    private func completeSetup() {
+        print("[NanoSwitch] Accessibility権限: ✅ 許可済み")
 
         windowManager = WindowManager()
         guard let wm = windowManager else {
@@ -45,7 +50,27 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
         eventTapManager = EventTapManager(windowManager: wm)
 
-        print("[NanoSwitch] ✅ 初期化完了")
+        if CGPreflightScreenCaptureAccess() {
+            print("[NanoSwitch] Screen Recording権限: ✅ 許可済み")
+            buildMainMenu()
+        } else {
+            print("[NanoSwitch] Screen Recording権限: ⚠️ 未許可")
+            CGRequestScreenCaptureAccess()  // 初回のみシステムダイアログを表示
+            updateMenuForMissingScreenRecording()
+            pollForScreenRecordingPermission()
+        }
+
+        print("[NanoSwitch] ✅ 初期化完了（スイッチャーは利用可能）")
+    }
+
+    /// システム設定でスクリーン収録を許可するまで1秒ごとに確認する
+    private func pollForScreenRecordingPermission() {
+        Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] timer in
+            guard CGPreflightScreenCaptureAccess() else { return }
+            timer.invalidate()
+            print("[NanoSwitch] Screen Recording権限: ✅ 許可済み（自動検知）")
+            self?.buildMainMenu()
+        }
     }
 
     // MARK: - Status Item
@@ -89,13 +114,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         settingsItem.target = self
         menu.addItem(settingsItem)
 
-        menu.addItem(NSMenuItem.separator())
-
-        let restartItem = NSMenuItem(title: "許可後にここから再起動",
-                                     action: #selector(relaunch),
-                                     keyEquivalent: "r")
-        restartItem.target = self
-        menu.addItem(restartItem)
+        let hintItem = NSMenuItem(title: "許可後、自動的に有効になります", action: nil, keyEquivalent: "")
+        hintItem.isEnabled = false
+        menu.addItem(hintItem)
 
         menu.addItem(NSMenuItem.separator())
 
@@ -111,11 +132,46 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    @objc private func relaunch() {
-        let url = Bundle.main.bundleURL
-        let config = NSWorkspace.OpenConfiguration()
-        NSWorkspace.shared.openApplication(at: url, configuration: config) { _, _ in
-            NSApp.terminate(nil)
+    /// スクリーン収録権限がない場合のメニュー表示（スイッチャー自体は動作する）
+    private func updateMenuForMissingScreenRecording() {
+        let menu = NSMenu()
+
+        let titleItem = NSMenuItem(title: "NanoSwitch", action: nil, keyEquivalent: "")
+        titleItem.isEnabled = false
+        menu.addItem(titleItem)
+        menu.addItem(NSMenuItem.separator())
+
+        let warnItem = NSMenuItem(title: "⚠️ スクリーン収録権限が必要です", action: nil, keyEquivalent: "")
+        warnItem.isEnabled = false
+        menu.addItem(warnItem)
+
+        let subItem = NSMenuItem(title: "サムネイル表示にはスクリーン収録が必要です", action: nil, keyEquivalent: "")
+        subItem.isEnabled = false
+        menu.addItem(subItem)
+
+        let settingsItem = NSMenuItem(title: "システム設定を開く…",
+                                      action: #selector(openScreenRecordingSettings),
+                                      keyEquivalent: "")
+        settingsItem.target = self
+        menu.addItem(settingsItem)
+
+        let hintItem = NSMenuItem(title: "許可後、自動的に有効になります", action: nil, keyEquivalent: "")
+        hintItem.isEnabled = false
+        menu.addItem(hintItem)
+
+        menu.addItem(NSMenuItem.separator())
+
+        let quitItem = NSMenuItem(title: "終了",
+                                  action: #selector(NSApplication.terminate(_:)),
+                                  keyEquivalent: "q")
+        menu.addItem(quitItem)
+        statusItem?.menu = menu
+    }
+
+    @objc private func openScreenRecordingSettings() {
+        if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture") {
+            NSWorkspace.shared.open(url)
         }
     }
+
 }

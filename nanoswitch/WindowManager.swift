@@ -1,5 +1,19 @@
 import Cocoa
 
+// MARK: - CGS Private API（Space 判定用）
+private typealias CGSConnectionID = UInt32
+private typealias CGSSpaceID = UInt64
+
+@_silgen_name("CGSMainConnectionID")
+private func CGSMainConnectionID() -> CGSConnectionID
+
+@_silgen_name("CGSGetActiveSpace")
+private func CGSGetActiveSpace(_ cid: CGSConnectionID) -> CGSSpaceID
+
+// mask=7: kCGSAllSpacesMask。戻り値は [CGSSpaceID] の CFArray（渡したウィンドウ群が属する Space IDの集合）
+@_silgen_name("CGSCopySpacesForWindows")
+private func CGSCopySpacesForWindows(_ cid: CGSConnectionID, _ mask: Int32, _ wids: CFArray) -> CFArray
+
 struct WindowInfo {
     let windowID: CGWindowID
     let appName: String
@@ -63,6 +77,10 @@ class WindowManager {
             return
         }
 
+        // CGS で現在アクティブな Space を取得（Space 切替直後も即時反映）
+        let cgsConn = CGSMainConnectionID()
+        let activeSpaceID = CGSGetActiveSpace(cgsConn)
+
         let runningApps = NSWorkspace.shared.runningApplications
 
         var newWindows: [WindowInfo] = []
@@ -71,7 +89,8 @@ class WindowManager {
             // レイヤー 0（通常ウィンドウ）のみ
             guard let layer = info[kCGWindowLayer as String] as? Int, layer == 0 else { continue }
 
-            // オンスクリーンのみ（最小化・他 Space のウィンドウを除外）
+            // オンスクリーンのみ（最小化ウィンドウを除外）
+            // ※ 他 Space のフィルタは CGS に委ねるため、ここでは最小化検出のみに使用
             guard let isOnscreen = info[kCGWindowIsOnscreen as String] as? Bool, isOnscreen else { continue }
 
             // alpha=0 の不可視ウィンドウ（アプリ内部ウィンドウ等）を除外
@@ -87,6 +106,11 @@ class WindowManager {
 
             guard let windowID = info[kCGWindowNumber as String] as? CGWindowID,
                   let pid = info[kCGWindowOwnerPID as String] as? pid_t else { continue }
+
+            // CGS Space チェック：現在の Space に属するウィンドウのみ（切替直後も正確）
+            // ウィンドウ単体で照会し、返ってきた Space 配列に activeSpaceID が含まれるか確認
+            let windowSpaces = CGSCopySpacesForWindows(cgsConn, 7, [NSNumber(value: windowID)] as CFArray) as NSArray
+            guard windowSpaces.contains(NSNumber(value: activeSpaceID)) else { continue }
 
             // 通常アプリのみ（ヘルパー・バックグラウンドプロセスを除外）
             guard let app = runningApps.first(where: { $0.processIdentifier == pid }),
