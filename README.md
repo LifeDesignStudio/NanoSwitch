@@ -4,10 +4,9 @@
                                                             
   macOS's built-in Cmd+Tab cycles through apps.                                                                                                                                         
   NanoSwitch shows a thumbnail grid of every **window** — so you jump directly to the exact one you need.
-
-  <img width="756" height="445" alt="Screenshot 2026-03-22 at 22 45 05" src="https://github.com/user-attachments/assets/50056e2c-93ec-412a-8c8f-908d7b919dcb" />
-                                                                                                                                                                    
-                                                                                                                                                                      
+  
+         ![NanoSwitch](https://github.com/user-attachments/assets/8beeceb1-0c61-48c8-8363-9ead831ab258)
+                                                                                                                                                    
   ---                                                                                                                                                                                   
                                                             
   ## How it works
