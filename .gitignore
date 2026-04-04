@@ -1,0 +1,12 @@
+# Xcode
+*.xcuserstate
+xcuserdata/
+*.xcscmblueprint
+DerivedData/
+
+# Profiling
+*.profraw
+*.profdata
+
+# macOS
+.DS_Store
