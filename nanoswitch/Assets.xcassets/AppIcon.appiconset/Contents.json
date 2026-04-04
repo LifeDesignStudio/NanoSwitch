@@ -1,61 +1,61 @@
 {
   "images" : [
     {
-      "filename" : "NanoSwitch.jpg",
+      "filename" : "nanoswitch.png",
       "idiom" : "mac",
       "scale" : "1x",
       "size" : "16x16"
     },
     {
-      "filename" : "NanoSwitch 1.jpg",
+      "filename" : "nanoswitch 1.png",
       "idiom" : "mac",
       "scale" : "2x",
       "size" : "16x16"
     },
     {
-      "filename" : "NanoSwitch 2.jpg",
+      "filename" : "nanoswitch 2.png",
       "idiom" : "mac",
       "scale" : "1x",
       "size" : "32x32"
     },
     {
-      "filename" : "NanoSwitch 3.jpg",
+      "filename" : "nanoswitch 3.png",
       "idiom" : "mac",
       "scale" : "2x",
       "size" : "32x32"
     },
     {
-      "filename" : "NanoSwitch 4.jpg",
+      "filename" : "nanoswitch 4.png",
       "idiom" : "mac",
       "scale" : "1x",
       "size" : "128x128"
     },
     {
-      "filename" : "NanoSwitch 5.jpg",
+      "filename" : "nanoswitch 5.png",
       "idiom" : "mac",
       "scale" : "2x",
       "size" : "128x128"
     },
     {
-      "filename" : "NanoSwitch 7.jpg",
+      "filename" : "nanoswitch 7.png",
       "idiom" : "mac",
       "scale" : "1x",
       "size" : "256x256"
     },
     {
-      "filename" : "NanoSwitch 6.jpg",
+      "filename" : "nanoswitch 6.png",
       "idiom" : "mac",
       "scale" : "2x",
       "size" : "256x256"
     },
     {
-      "filename" : "NanoSwitch 8.jpg",
+      "filename" : "nanoswitch 8.png",
       "idiom" : "mac",
       "scale" : "1x",
       "size" : "512x512"
     },
     {
-      "filename" : "NanoSwitch 9.jpg",
+      "filename" : "nanoswitch 9.png",
       "idiom" : "mac",
       "scale" : "2x",
       "size" : "512x512"
