@@ -42,7 +42,8 @@
   ## Installation                                           
 
   1. Download `NanoSwitch.zip` from [Releases](../../releases/latest)                                                                                                                   
-  2. Unzip and move `NanoSwitch.app` to your Applications folder
+  2. Unzip and move `NanoSwitch.app` to `/Applications/` (the system Applications folder)
+     > ⚠️ Do **not** place it in `~/Applications/` — Screen Recording thumbnails will silently fail if the app is in your user Applications folder.
   3. Launch the app                                                                                                                                                                     
                                                             
   **If macOS blocks the app:**                                                                                                                                                          
