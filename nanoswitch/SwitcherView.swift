@@ -9,6 +9,8 @@ class SwitcherView: NSView {
     private static let thumbnailHeight: CGFloat = 150
     private static let padding: CGFloat = 12
     static let maxColumns: Int = 5
+    private static let iconSize: CGFloat = 20
+    private static let closeButtonSize: CGFloat = 16
 
     // MARK: - State
 
@@ -23,6 +25,7 @@ class SwitcherView: NSView {
 
     var onActivate: ((WindowInfo) -> Void)?
     var onDismiss: (() -> Void)?
+    var onClose: ((WindowInfo) -> Void)?
 
     // MARK: - Public
 
@@ -82,6 +85,7 @@ class SwitcherView: NSView {
     override func mouseDown(with event: NSEvent) {
         let point = convert(event.locationInWindow, from: nil)
         for (index, _) in windows.enumerated() {
+            if closeButtonFrame(for: index).contains(point) { return }
             if cellFrame(for: index).contains(point) {
                 selectedIndex = index
                 break
@@ -92,6 +96,10 @@ class SwitcherView: NSView {
     override func mouseUp(with event: NSEvent) {
         let point = convert(event.locationInWindow, from: nil)
         for (index, windowInfo) in windows.enumerated() {
+            if closeButtonFrame(for: index).contains(point) {
+                onClose?(windowInfo)
+                return
+            }
             if cellFrame(for: index).contains(point) && index == selectedIndex {
                 onActivate?(windowInfo)
                 return
@@ -124,6 +132,16 @@ class SwitcherView: NSView {
         let y = CGFloat(totalRows - 1 - row) * (SwitcherView.cellHeight + SwitcherView.padding) + SwitcherView.padding
 
         return NSRect(x: x, y: y, width: SwitcherView.cellWidth, height: SwitcherView.cellHeight)
+    }
+
+    private func closeButtonFrame(for index: Int) -> NSRect {
+        let cell = cellFrame(for: index)
+        return NSRect(
+            x: cell.maxX - Self.closeButtonSize - 4,
+            y: cell.maxY - Self.closeButtonSize - 4,
+            width: Self.closeButtonSize,
+            height: Self.closeButtonSize
+        )
     }
 
     private func drawCell(windowInfo: WindowInfo, at frame: NSRect, isSelected: Bool) {
@@ -165,7 +183,7 @@ class SwitcherView: NSView {
         }
 
         // アプリ名
-        let appNameRect = NSRect(x: frame.minX + 6, y: frame.minY + 18, width: frame.width - 12, height: 18)
+        let appNameRect = NSRect(x: frame.minX + 30, y: frame.minY + 22, width: frame.width - 36, height: 18)
         let appNameAttrs: [NSAttributedString.Key: Any] = [
             .font: NSFont.systemFont(ofSize: 12, weight: .medium),
             .foregroundColor: NSColor.white
@@ -173,7 +191,7 @@ class SwitcherView: NSView {
         NSAttributedString(string: windowInfo.appName, attributes: appNameAttrs).draw(in: appNameRect)
 
         // ウィンドウタイトル（小文字）
-        let titleRect = NSRect(x: frame.minX + 6, y: frame.minY + 3, width: frame.width - 12, height: 15)
+        let titleRect = NSRect(x: frame.minX + 30, y: frame.minY + 5, width: frame.width - 36, height: 14)
         let titleAttrs: [NSAttributedString.Key: Any] = [
             .font: NSFont.systemFont(ofSize: 10),
             .foregroundColor: NSColor.white.withAlphaComponent(0.55)
@@ -182,6 +200,24 @@ class SwitcherView: NSView {
             ? String(windowInfo.windowTitle.prefix(32)) + "…"
             : windowInfo.windowTitle
         NSAttributedString(string: truncated, attributes: titleAttrs).draw(in: titleRect)
+
+        // アプリアイコン
+        if let icon = windowInfo.app.icon {
+            let iconRect = NSRect(x: frame.minX + 6, y: frame.minY + 10,
+                                  width: Self.iconSize, height: Self.iconSize)
+            icon.draw(in: iconRect, from: .zero, operation: .sourceOver, fraction: 1.0)
+        }
+
+        // 閉じるボタン（全セルに常時表示）
+        let cbX = frame.maxX - Self.closeButtonSize - 4
+        let cbY = frame.maxY - Self.closeButtonSize - 4
+        let cbRect = NSRect(x: cbX, y: cbY, width: Self.closeButtonSize, height: Self.closeButtonSize)
+        let symConfig = NSImage.SymbolConfiguration(pointSize: Self.closeButtonSize, weight: .medium)
+            .applying(NSImage.SymbolConfiguration(paletteColors: [.white]))
+        if let img = NSImage(systemSymbolName: "xmark.circle.fill", accessibilityDescription: nil)?
+            .withSymbolConfiguration(symConfig) {
+            img.draw(in: cbRect, from: .zero, operation: .sourceOver, fraction: 0.7)
+        }
     }
 
     // MARK: - Size Calculation

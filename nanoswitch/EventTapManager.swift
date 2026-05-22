@@ -13,6 +13,9 @@ class EventTapManager {
 
     init(windowManager: WindowManager) {
         self.windowManager = windowManager
+        switcherController.onClose = { [weak self] windowInfo in
+            self?.handleWindowClose(windowInfo)
+        }
         setupEventTap()
     }
 
@@ -167,5 +170,29 @@ class EventTapManager {
         NSLog("[NanoSwitch] キャンセル")
         thumbnailFetcher.cancel()
         switcherController.dismiss()
+    }
+
+    private func handleWindowClose(_ windowInfo: WindowInfo) {
+        guard let wm = windowManager else { return }
+        thumbnailFetcher.cancel()
+        wm.closeWindow(windowInfo)
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { [weak self] in
+            guard let self, self.switcherController.isVisible else { return }
+            wm.updateWindowList()
+            let updated = wm.getWindows()
+            guard !updated.isEmpty else {
+                self.switcherController.dismiss()
+                return
+            }
+            var icons: [CGWindowID: NSImage] = [:]
+            for w in updated { if let icon = w.app.icon { icons[w.windowID] = icon } }
+            self.switcherController.show(windows: updated, thumbnails: icons)
+            self.thumbnailFetcher.fetchThumbnails(for: updated) { [weak self] thumbnails in
+                guard let self, self.switcherController.isVisible else { return }
+                let merged = icons.merging(thumbnails) { _, new in new }
+                self.switcherController.updateThumbnails(merged)
+            }
+        }
     }
 }

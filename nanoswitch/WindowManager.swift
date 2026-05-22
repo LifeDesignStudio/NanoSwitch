@@ -14,6 +14,10 @@ private func CGSGetActiveSpace(_ cid: CGSConnectionID) -> CGSSpaceID
 @_silgen_name("CGSCopySpacesForWindows")
 private func CGSCopySpacesForWindows(_ cid: CGSConnectionID, _ mask: Int32, _ wids: CFArray) -> CFArray
 
+@_silgen_name("_AXUIElementGetWindow")
+private func _AXUIElementGetWindow(_ element: AXUIElement,
+                                    _ windowID: UnsafeMutablePointer<CGWindowID>) -> AXError
+
 struct WindowInfo {
     let windowID: CGWindowID
     let appName: String
@@ -40,6 +44,29 @@ class WindowManager {
 
     func getWindows() -> [WindowInfo] {
         windows
+    }
+
+    func closeWindow(_ windowInfo: WindowInfo) {
+        let axApp = AXUIElementCreateApplication(windowInfo.ownerPID)
+        var windowsRef: CFTypeRef?
+        guard AXUIElementCopyAttributeValue(axApp, kAXWindowsAttribute as CFString, &windowsRef) == .success,
+              let axWindows = windowsRef as? [AXUIElement] else { return }
+
+        var target: AXUIElement?
+        for axWindow in axWindows {
+            var wid: CGWindowID = 0
+            if _AXUIElementGetWindow(axWindow, &wid) == .success, wid == windowInfo.windowID {
+                target = axWindow
+                break
+            }
+        }
+        guard let axWindow = target else { return }
+
+        var closeButtonRef: CFTypeRef?
+        if AXUIElementCopyAttributeValue(axWindow, kAXCloseButtonAttribute as CFString, &closeButtonRef) == .success,
+           let closeButton = closeButtonRef as? AXUIElement {
+            AXUIElementPerformAction(closeButton, kAXPressAction as CFString)
+        }
     }
 
     // MARK: - Notifications
@@ -73,7 +100,7 @@ class WindowManager {
     func updateWindowList() {
         let options = CGWindowListOption([.optionOnScreenOnly, .excludeDesktopElements])
         guard let rawList = CGWindowListCopyWindowInfo(options, kCGNullWindowID) as? [[String: Any]] else {
-            print("[NanoSwitch] ⚠️ CGWindowListCopyWindowInfo 失敗")
+            NSLog("[NanoSwitch] ⚠️ CGWindowListCopyWindowInfo 失敗")
             return
         }
 
@@ -135,6 +162,8 @@ class WindowManager {
         // ※ 以前は DispatchQueue.main.async で遅延していたため、
         //   直後の getWindows() が古いリストを返すバグがあった
         windows = newWindows
+        #if DEBUG
         print("[NanoSwitch] ウィンドウリスト更新: \(windows.count) 件 \(windows.map { $0.appName })")
+        #endif
     }
 }

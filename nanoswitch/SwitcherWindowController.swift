@@ -11,6 +11,7 @@ class SwitcherWindowController {
     private var panel: NSPanel?
     private var switcherView: SwitcherView?
     private var currentWindows: [WindowInfo] = []
+    var onClose: ((WindowInfo) -> Void)?
 
     // MARK: - Public
 
@@ -23,7 +24,9 @@ class SwitcherWindowController {
               startAtEnd: Bool = false) {
         guard !windows.isEmpty else { return }
         currentWindows = windows
+        #if DEBUG
         print("[NanoSwitch] SwitcherWindowController.show() - \(windows.count) ウィンドウ")
+        #endif
 
         if panel == nil {
             createPanel()
@@ -51,7 +54,9 @@ class SwitcherWindowController {
 
         panel?.orderFrontRegardless()
         panel?.makeFirstResponder(switcherView)
+        #if DEBUG
         print("[NanoSwitch] パネル表示完了。isVisible=\(panel?.isVisible ?? false), frame=\(panel?.frame ?? .zero)")
+        #endif
     }
 
     func dismiss() {
@@ -87,6 +92,9 @@ class SwitcherWindowController {
         view.onDismiss = { [weak self] in
             self?.dismiss()
         }
+        view.onClose = { [weak self] windowInfo in
+            self?.onClose?(windowInfo)
+        }
         switcherView = view
 
         let newPanel = NSPanel(
@@ -105,7 +113,9 @@ class SwitcherWindowController {
         newPanel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
 
         panel = newPanel
+        #if DEBUG
         print("[NanoSwitch] NSPanel 作成完了")
+        #endif
     }
 
     // MARK: - Window Activation
@@ -145,8 +155,9 @@ class SwitcherWindowController {
 
                 // 3rd: 位置・サイズでフォールバック（Chrome の複数ウィンドウ対応）
                 // CGWindowBounds は CG座標系（Y: 上→下）、AXFrame は Cocoa座標系（Y: 下→上）なので変換が必要
-                if target == nil, let bounds = freshBounds, bounds != .zero {
-                    let primaryHeight = NSScreen.screens.first?.frame.height ?? 0
+                // primaryHeight が 0 の場合（ディスプレイ未初期化）は座標変換が破綻するためスキップ
+                if target == nil, let bounds = freshBounds, bounds != .zero,
+                   let primaryHeight = NSScreen.screens.first?.frame.height, primaryHeight > 0 {
                     let cocoaY = primaryHeight - bounds.origin.y - bounds.height
                     target = axWindows.first(where: {
                         var frameRef: CFTypeRef?
