@@ -64,8 +64,9 @@ class WindowManager {
 
         var closeButtonRef: CFTypeRef?
         if AXUIElementCopyAttributeValue(axWindow, kAXCloseButtonAttribute as CFString, &closeButtonRef) == .success,
-           let closeButton = closeButtonRef as? AXUIElement {
-            AXUIElementPerformAction(closeButton, kAXPressAction as CFString)
+           let ref = closeButtonRef,
+           CFGetTypeID(ref) == AXUIElementGetTypeID() {
+            AXUIElementPerformAction(ref as! AXUIElement, kAXPressAction as CFString)
         }
     }
 
