@@ -21,6 +21,10 @@ class SwitcherView: NSView {
         didSet { needsDisplay = true }
     }
 
+    private var hoveredIndex: Int? {
+        didSet { if oldValue != hoveredIndex { needsDisplay = true } }
+    }
+
     // MARK: - Callbacks
 
     var onActivate: ((WindowInfo) -> Void)?
@@ -32,6 +36,7 @@ class SwitcherView: NSView {
     func configure(windows: [WindowInfo], thumbnails: [CGWindowID: NSImage]) {
         self.windows = windows
         self.thumbnails = thumbnails
+        hoveredIndex = nil
         if selectedIndex >= windows.count {
             selectedIndex = max(0, windows.count - 1)  // didSet triggers needsDisplay
         } else {
@@ -82,10 +87,31 @@ class SwitcherView: NSView {
 
     // MARK: - Mouse
 
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+        for area in trackingAreas { removeTrackingArea(area) }
+        addTrackingArea(NSTrackingArea(
+            rect: bounds,
+            options: [.mouseEnteredAndExited, .mouseMoved, .activeAlways],
+            owner: self,
+            userInfo: nil
+        ))
+    }
+
+    override func mouseMoved(with event: NSEvent) {
+        let point = convert(event.locationInWindow, from: nil)
+        hoveredIndex = windows.indices.first { cellFrame(for: $0).contains(point) }
+    }
+
+    override func mouseExited(with event: NSEvent) {
+        hoveredIndex = nil
+    }
+
     override func mouseDown(with event: NSEvent) {
         let point = convert(event.locationInWindow, from: nil)
         for (index, _) in windows.enumerated() {
-            if closeButtonFrame(for: index).contains(point) { return }
+            let closeVisible = index == hoveredIndex || index == selectedIndex
+            if closeVisible && closeButtonFrame(for: index).contains(point) { return }
             if cellFrame(for: index).contains(point) {
                 selectedIndex = index
                 break
@@ -96,7 +122,8 @@ class SwitcherView: NSView {
     override func mouseUp(with event: NSEvent) {
         let point = convert(event.locationInWindow, from: nil)
         for (index, windowInfo) in windows.enumerated() {
-            if closeButtonFrame(for: index).contains(point) {
+            let closeVisible = index == hoveredIndex || index == selectedIndex
+            if closeVisible && closeButtonFrame(for: index).contains(point) {
                 onClose?(windowInfo)
                 return
             }
@@ -118,7 +145,8 @@ class SwitcherView: NSView {
         for (index, windowInfo) in windows.enumerated() {
             drawCell(windowInfo: windowInfo,
                      at: cellFrame(for: index),
-                     isSelected: index == selectedIndex)
+                     isSelected: index == selectedIndex,
+                     isHovered: index == hoveredIndex)
         }
     }
 
@@ -144,7 +172,7 @@ class SwitcherView: NSView {
         )
     }
 
-    private func drawCell(windowInfo: WindowInfo, at frame: NSRect, isSelected: Bool) {
+    private func drawCell(windowInfo: WindowInfo, at frame: NSRect, isSelected: Bool, isHovered: Bool) {
         // セル背景
         let bgColor = isSelected
             ? NSColor.selectedControlColor.withAlphaComponent(0.35)
@@ -184,22 +212,25 @@ class SwitcherView: NSView {
 
         // アプリ名
         let appNameRect = NSRect(x: frame.minX + 38, y: frame.minY + 22, width: frame.width - 44, height: 18)
+        let appNameStyle = NSMutableParagraphStyle()
+        appNameStyle.lineBreakMode = .byTruncatingTail
         let appNameAttrs: [NSAttributedString.Key: Any] = [
             .font: NSFont.systemFont(ofSize: 12, weight: .medium),
-            .foregroundColor: NSColor.white
+            .foregroundColor: NSColor.white,
+            .paragraphStyle: appNameStyle
         ]
         NSAttributedString(string: windowInfo.appName, attributes: appNameAttrs).draw(in: appNameRect)
 
-        // ウィンドウタイトル（小文字）
+        // ウィンドウタイトル
         let titleRect = NSRect(x: frame.minX + 38, y: frame.minY + 10, width: frame.width - 44, height: 14)
+        let titleStyle = NSMutableParagraphStyle()
+        titleStyle.lineBreakMode = .byTruncatingTail
         let titleAttrs: [NSAttributedString.Key: Any] = [
             .font: NSFont.systemFont(ofSize: 10),
-            .foregroundColor: NSColor.white.withAlphaComponent(0.55)
+            .foregroundColor: NSColor.white.withAlphaComponent(0.55),
+            .paragraphStyle: titleStyle
         ]
-        let truncated = windowInfo.windowTitle.count > 32
-            ? String(windowInfo.windowTitle.prefix(32)) + "…"
-            : windowInfo.windowTitle
-        NSAttributedString(string: truncated, attributes: titleAttrs).draw(in: titleRect)
+        NSAttributedString(string: windowInfo.windowTitle, attributes: titleAttrs).draw(in: titleRect)
 
         // アプリアイコン（上端をテキスト上端と揃える）
         if let icon = windowInfo.app.icon {
@@ -208,15 +239,17 @@ class SwitcherView: NSView {
             icon.draw(in: iconRect, from: .zero, operation: .sourceOver, fraction: 1.0)
         }
 
-        // 閉じるボタン（全セルに常時表示）
-        let cbX = frame.maxX - Self.closeButtonSize - 4
-        let cbY = frame.maxY - Self.closeButtonSize - 4
-        let cbRect = NSRect(x: cbX, y: cbY, width: Self.closeButtonSize, height: Self.closeButtonSize)
-        let symConfig = NSImage.SymbolConfiguration(pointSize: Self.closeButtonSize, weight: .medium)
-            .applying(NSImage.SymbolConfiguration(paletteColors: [.white]))
-        if let img = NSImage(systemSymbolName: "xmark.circle", accessibilityDescription: nil)?
-            .withSymbolConfiguration(symConfig) {
-            img.draw(in: cbRect, from: .zero, operation: .sourceOver, fraction: 0.85)
+        // 閉じるボタン（ホバー中または選択中のセルのみ表示）
+        if isHovered || isSelected {
+            let cbX = frame.maxX - Self.closeButtonSize - 4
+            let cbY = frame.maxY - Self.closeButtonSize - 4
+            let cbRect = NSRect(x: cbX, y: cbY, width: Self.closeButtonSize, height: Self.closeButtonSize)
+            let symConfig = NSImage.SymbolConfiguration(pointSize: Self.closeButtonSize, weight: .medium)
+                .applying(NSImage.SymbolConfiguration(paletteColors: [.white]))
+            if let img = NSImage(systemSymbolName: "xmark.circle", accessibilityDescription: nil)?
+                .withSymbolConfiguration(symConfig) {
+                img.draw(in: cbRect, from: .zero, operation: .sourceOver, fraction: 0.85)
+            }
         }
     }
 

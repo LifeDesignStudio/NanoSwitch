@@ -13,15 +13,21 @@ class ThumbnailFetcher {
     func fetchThumbnails(for windows: [WindowInfo],
                          completion: @escaping ([CGWindowID: NSImage]) -> Void) {
         fetchTask?.cancel()
+        #if DEBUG
         print("[NanoSwitch] ThumbnailFetcher 取得開始 - \(windows.count) 件")
+        #endif
 
         fetchTask = Task {
             let thumbnails = await capture(windows: windows)
             guard !Task.isCancelled else {
+                #if DEBUG
                 print("[NanoSwitch] ThumbnailFetcher キャンセル")
+                #endif
                 return
             }
+            #if DEBUG
             print("[NanoSwitch] ThumbnailFetcher 完了 - \(thumbnails.count) 件")
+            #endif
             await MainActor.run { completion(thumbnails) }
         }
     }
@@ -34,7 +40,7 @@ class ThumbnailFetcher {
             return await captureWithSCK(windows: windows, content: content)
         }
         // SCShareableContent 取得失敗時は旧 API にフォールバック
-        print("[NanoSwitch] SCShareableContent 取得失敗 → CGWindowList にフォールバック")
+        NSLog("[NanoSwitch] SCShareableContent 取得失敗 → CGWindowList にフォールバック")
         return captureWithCGWindowList(windows: windows)
     }
 
@@ -60,11 +66,14 @@ class ThumbnailFetcher {
             config.width  = max(1, Int(ww * scale))
             config.height = max(1, Int(wh * scale))
 
-            if let cgImage = try? await SCScreenshotManager.captureImage(contentFilter: filter, configuration: config) {
+            do {
+                let cgImage = try await SCScreenshotManager.captureImage(contentFilter: filter, configuration: config)
                 thumbnails[windowInfo.windowID] = ThumbnailFetcher.resize(
                     NSImage(cgImage: cgImage, size: .zero), maxSize: NSSize(width: 300, height: 200))
-            } else if let icon = windowInfo.app.icon {
-                thumbnails[windowInfo.windowID] = icon
+            } catch {
+                NSLog("[NanoSwitch] SCK キャプチャ失敗 (windowID=%u): %@",
+                      windowInfo.windowID, error.localizedDescription)
+                if let icon = windowInfo.app.icon { thumbnails[windowInfo.windowID] = icon }
             }
         }
         return thumbnails

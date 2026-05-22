@@ -10,6 +10,7 @@ class SwitcherWindowController {
 
     private var panel: NSPanel?
     private var switcherView: SwitcherView?
+    private var visualEffectView: NSVisualEffectView?
     private var currentWindows: [WindowInfo] = []
     var onClose: ((WindowInfo) -> Void)?
 
@@ -45,6 +46,7 @@ class SwitcherWindowController {
         }
 
         // ビューサイズ更新
+        visualEffectView?.frame = NSRect(origin: .zero, size: preferredSize)
         switcherView?.frame = NSRect(origin: .zero, size: preferredSize)
         switcherView?.configure(windows: windows, thumbnails: thumbnails)
 
@@ -52,18 +54,36 @@ class SwitcherWindowController {
             switcherView?.selectedIndex = max(0, windows.count - 1)
         }
 
+        let alreadyVisible = isVisible
+        if !alreadyVisible { panel?.alphaValue = 0 }
         panel?.orderFrontRegardless()
         panel?.makeFirstResponder(switcherView)
+        if !alreadyVisible {
+            NSAnimationContext.runAnimationGroup { context in
+                context.duration = 0.18
+                context.timingFunction = CAMediaTimingFunction(name: .easeOut)
+                self.panel?.animator().alphaValue = 1.0
+            }
+        } else {
+            panel?.alphaValue = 1.0
+        }
         #if DEBUG
         print("[NanoSwitch] パネル表示完了。isVisible=\(panel?.isVisible ?? false), frame=\(panel?.frame ?? .zero)")
         #endif
     }
 
     func dismiss() {
-        panel?.orderOut(nil)
-        currentWindows = []
-        // サムネイル参照をすべて解放してメモリ解放
-        switcherView?.configure(windows: [], thumbnails: [:])
+        guard isVisible else { return }
+        NSAnimationContext.runAnimationGroup({ context in
+            context.duration = 0.12
+            context.timingFunction = CAMediaTimingFunction(name: .easeIn)
+            self.panel?.animator().alphaValue = 0.0
+        }, completionHandler: { [weak self] in
+            self?.panel?.orderOut(nil)
+            self?.panel?.alphaValue = 1.0
+            self?.currentWindows = []
+            self?.switcherView?.configure(windows: [], thumbnails: [:])
+        })
     }
 
     /// サムネイルだけを差し替える（パネル再配置・再front化なし）
@@ -97,6 +117,16 @@ class SwitcherWindowController {
         }
         switcherView = view
 
+        let effectView = NSVisualEffectView(frame: NSRect(x: 0, y: 0, width: 400, height: 220))
+        effectView.material = .hudWindow
+        effectView.blendingMode = .behindWindow
+        effectView.state = .active
+        effectView.wantsLayer = true
+        effectView.layer?.cornerRadius = 12
+        effectView.layer?.masksToBounds = true
+        effectView.addSubview(view)
+        visualEffectView = effectView
+
         let newPanel = NSPanel(
             contentRect: NSRect(x: 0, y: 0, width: 400, height: 220),
             styleMask: [.nonactivatingPanel],
@@ -105,9 +135,9 @@ class SwitcherWindowController {
         )
         newPanel.level = .modalPanel
         newPanel.isOpaque = false
-        newPanel.backgroundColor = NSColor.black.withAlphaComponent(0.85)
+        newPanel.backgroundColor = .clear
         newPanel.hasShadow = true
-        newPanel.contentView = view
+        newPanel.contentView = effectView
         newPanel.acceptsMouseMovedEvents = true
         // 全Spaceおよびフルスクリーンアプリの上に表示するために必要
         newPanel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]

@@ -5,9 +5,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private var statusItem: NSStatusItem?
     private var windowManager: WindowManager?
     private var eventTapManager: EventTapManager?
+    private let supportPopover = SupportPopoverController()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        #if DEBUG
         print("[NanoSwitch] ▶ applicationDidFinishLaunching")
+        #endif
         NSApp.setActivationPolicy(.accessory)
 
         // メニューバーアイコンは権限状態に関わらず常に最初に表示する
@@ -20,7 +23,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func startIfPermitted() {
         guard AXIsProcessTrustedWithOptions(nil) else {
+            #if DEBUG
             print("[NanoSwitch] Accessibility権限: ❌ 未許可")
+            #endif
             // 未許可のときだけシステムダイアログを表示
             AXIsProcessTrustedWithOptions(
                 [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true] as CFDictionary)
@@ -41,26 +46,34 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func completeSetup() {
+        #if DEBUG
         print("[NanoSwitch] Accessibility権限: ✅ 許可済み")
+        #endif
 
         windowManager = WindowManager()
         guard let wm = windowManager else {
-            print("[NanoSwitch] ❌ WindowManager の初期化に失敗")
+            NSLog("[NanoSwitch] ❌ WindowManager の初期化に失敗")
             return
         }
         eventTapManager = EventTapManager(windowManager: wm)
 
         if CGPreflightScreenCaptureAccess() {
+            #if DEBUG
             print("[NanoSwitch] Screen Recording権限: ✅ 許可済み")
+            #endif
             buildMainMenu()
         } else {
+            #if DEBUG
             print("[NanoSwitch] Screen Recording権限: ⚠️ 未許可")
+            #endif
             CGRequestScreenCaptureAccess()  // 初回のみシステムダイアログを表示
             updateMenuForMissingScreenRecording()
             pollForScreenRecordingPermission()
         }
 
+        #if DEBUG
         print("[NanoSwitch] ✅ 初期化完了（スイッチャーは利用可能）")
+        #endif
     }
 
     /// システム設定でスクリーン収録を許可するまで1秒ごとに確認する
@@ -68,7 +81,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] timer in
             guard CGPreflightScreenCaptureAccess() else { return }
             timer.invalidate()
+            #if DEBUG
             print("[NanoSwitch] Screen Recording権限: ✅ 許可済み（自動検知）")
+            #endif
             self?.buildMainMenu()
         }
     }
@@ -88,15 +103,32 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func buildMainMenu() {
         let menu = NSMenu()
+
         let titleItem = NSMenuItem(title: "NanoSwitch", action: nil, keyEquivalent: "")
         titleItem.isEnabled = false
         menu.addItem(titleItem)
+
         menu.addItem(NSMenuItem.separator())
-        let quitItem = NSMenuItem(title: "終了",
+
+        let supportItem = NSMenuItem(title: "☕ Support NanoSwitch",
+                                     action: #selector(showSupportPopover),
+                                     keyEquivalent: "")
+        supportItem.target = self
+        menu.addItem(supportItem)
+
+        menu.addItem(NSMenuItem.separator())
+
+        let quitItem = NSMenuItem(title: "Quit NanoSwitch",
                                   action: #selector(NSApplication.terminate(_:)),
                                   keyEquivalent: "q")
         menu.addItem(quitItem)
+
         statusItem?.menu = menu
+    }
+
+    @objc private func showSupportPopover() {
+        guard let button = statusItem?.button else { return }
+        supportPopover.show(relativeTo: button)
     }
 
     /// Accessibility 権限がない場合のメニュー表示
@@ -161,7 +193,15 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         menu.addItem(NSMenuItem.separator())
 
-        let quitItem = NSMenuItem(title: "終了",
+        let supportItem = NSMenuItem(title: "☕ Support NanoSwitch",
+                                     action: #selector(showSupportPopover),
+                                     keyEquivalent: "")
+        supportItem.target = self
+        menu.addItem(supportItem)
+
+        menu.addItem(NSMenuItem.separator())
+
+        let quitItem = NSMenuItem(title: "Quit NanoSwitch",
                                   action: #selector(NSApplication.terminate(_:)),
                                   keyEquivalent: "q")
         menu.addItem(quitItem)

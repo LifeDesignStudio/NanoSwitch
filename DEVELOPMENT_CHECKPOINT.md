@@ -256,6 +256,7 @@ xcodebuild test -project nanoswitch.xcodeproj -scheme nanoswitch
 
 | 項目 | 詳細 |
 |------|------|
+| **Login Itemに追加を促す** |  |
 | **プライベート API 依存** | `CGSCopySpacesForWindows`、`_AXUIElementGetWindow` は Apple 非公開 API。将来の macOS で予告なく削除・変更される可能性がある |
 | **テスト未整備** | CGEventTap や CGS API を使う処理は Unit テスト困難だが、WindowManager のフィルタロジックは純粋関数化してテスト可能 |
 | **SwitcherView の直描画** | NSCollectionView を使わず全セルを `draw()` で直描画しているため、ウィンドウ数が増えると描画負荷が増大する可能性がある |
