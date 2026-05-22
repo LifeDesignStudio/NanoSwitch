@@ -201,9 +201,9 @@ class SwitcherView: NSView {
             : windowInfo.windowTitle
         NSAttributedString(string: truncated, attributes: titleAttrs).draw(in: titleRect)
 
-        // アプリアイコン
+        // アプリアイコン（上端をテキスト上端と揃える）
         if let icon = windowInfo.app.icon {
-            let iconRect = NSRect(x: frame.minX + 6, y: frame.minY + 6,
+            let iconRect = NSRect(x: frame.minX + 6, y: frame.minY + 12,
                                   width: Self.iconSize, height: Self.iconSize)
             icon.draw(in: iconRect, from: .zero, operation: .sourceOver, fraction: 1.0)
         }
@@ -214,7 +214,7 @@ class SwitcherView: NSView {
         let cbRect = NSRect(x: cbX, y: cbY, width: Self.closeButtonSize, height: Self.closeButtonSize)
         let symConfig = NSImage.SymbolConfiguration(pointSize: Self.closeButtonSize, weight: .medium)
             .applying(NSImage.SymbolConfiguration(paletteColors: [.white]))
-        if let img = NSImage(systemSymbolName: "xmark.circle.fill", accessibilityDescription: nil)?
+        if let img = NSImage(systemSymbolName: "xmark.circle", accessibilityDescription: nil)?
             .withSymbolConfiguration(symConfig) {
             img.draw(in: cbRect, from: .zero, operation: .sourceOver, fraction: 0.85)
         }
