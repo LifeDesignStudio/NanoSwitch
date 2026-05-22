@@ -191,7 +191,7 @@ class SwitcherView: NSView {
         NSAttributedString(string: windowInfo.appName, attributes: appNameAttrs).draw(in: appNameRect)
 
         // ウィンドウタイトル（小文字）
-        let titleRect = NSRect(x: frame.minX + 38, y: frame.minY + 5, width: frame.width - 44, height: 14)
+        let titleRect = NSRect(x: frame.minX + 38, y: frame.minY + 10, width: frame.width - 44, height: 14)
         let titleAttrs: [NSAttributedString.Key: Any] = [
             .font: NSFont.systemFont(ofSize: 10),
             .foregroundColor: NSColor.white.withAlphaComponent(0.55)
