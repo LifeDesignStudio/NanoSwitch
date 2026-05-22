@@ -9,8 +9,8 @@ class SwitcherView: NSView {
     private static let thumbnailHeight: CGFloat = 150
     private static let padding: CGFloat = 12
     static let maxColumns: Int = 5
-    private static let iconSize: CGFloat = 20
-    private static let closeButtonSize: CGFloat = 16
+    private static let iconSize: CGFloat = 28
+    private static let closeButtonSize: CGFloat = 20
 
     // MARK: - State
 
@@ -183,7 +183,7 @@ class SwitcherView: NSView {
         }
 
         // アプリ名
-        let appNameRect = NSRect(x: frame.minX + 30, y: frame.minY + 22, width: frame.width - 36, height: 18)
+        let appNameRect = NSRect(x: frame.minX + 38, y: frame.minY + 22, width: frame.width - 44, height: 18)
         let appNameAttrs: [NSAttributedString.Key: Any] = [
             .font: NSFont.systemFont(ofSize: 12, weight: .medium),
             .foregroundColor: NSColor.white
@@ -191,7 +191,7 @@ class SwitcherView: NSView {
         NSAttributedString(string: windowInfo.appName, attributes: appNameAttrs).draw(in: appNameRect)
 
         // ウィンドウタイトル（小文字）
-        let titleRect = NSRect(x: frame.minX + 30, y: frame.minY + 5, width: frame.width - 36, height: 14)
+        let titleRect = NSRect(x: frame.minX + 38, y: frame.minY + 5, width: frame.width - 44, height: 14)
         let titleAttrs: [NSAttributedString.Key: Any] = [
             .font: NSFont.systemFont(ofSize: 10),
             .foregroundColor: NSColor.white.withAlphaComponent(0.55)
@@ -203,7 +203,7 @@ class SwitcherView: NSView {
 
         // アプリアイコン
         if let icon = windowInfo.app.icon {
-            let iconRect = NSRect(x: frame.minX + 6, y: frame.minY + 10,
+            let iconRect = NSRect(x: frame.minX + 6, y: frame.minY + 6,
                                   width: Self.iconSize, height: Self.iconSize)
             icon.draw(in: iconRect, from: .zero, operation: .sourceOver, fraction: 1.0)
         }
@@ -216,7 +216,7 @@ class SwitcherView: NSView {
             .applying(NSImage.SymbolConfiguration(paletteColors: [.white]))
         if let img = NSImage(systemSymbolName: "xmark.circle.fill", accessibilityDescription: nil)?
             .withSymbolConfiguration(symConfig) {
-            img.draw(in: cbRect, from: .zero, operation: .sourceOver, fraction: 0.7)
+            img.draw(in: cbRect, from: .zero, operation: .sourceOver, fraction: 0.85)
         }
     }
 
