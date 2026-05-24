@@ -97,7 +97,7 @@ class ThumbnailFetcher {
     // MARK: - Resize
 
     // アスペクト比を維持しつつ maxSize に収まるようリサイズ（拡大はしない）
-    private static func resize(_ image: NSImage, maxSize: NSSize) -> NSImage {
+    static func resize(_ image: NSImage, maxSize: NSSize) -> NSImage {
         let size = image.size
         guard size.width > 0, size.height > 0 else { return image }
         let scale = min(maxSize.width / size.width, maxSize.height / size.height, 1.0)
