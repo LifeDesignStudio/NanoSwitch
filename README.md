@@ -47,8 +47,8 @@
      > ⚠️ Do **not** place it in `~/Applications/` — Screen Recording thumbnails will silently fail if the app is in your user Applications folder.
   3. Launch the app                                                                                                                                                                     
                                                             
-  **If macOS blocks the app:**                                                                                                                                                          
-  Right-click (or Control-click) the app → **Open**         
+  **If macOS blocks the app:**
+  Open **System Settings → Privacy & Security**, scroll down to find `"NanoSwitch.app" was blocked`, then click **Open Anyway**.
                                                                                                                                                                                         
   ---                                                       
 
@@ -75,7 +75,7 @@
 
   **App blocked by macOS Gatekeeper**
 
-  Right-click (or Control-click) the app → **Open** → **Open**.
+  Open **System Settings → Privacy & Security**, scroll down to find `"NanoSwitch.app" was blocked`, then click **Open Anyway**.
 
   ---
 
