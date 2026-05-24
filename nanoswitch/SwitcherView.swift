@@ -212,10 +212,15 @@ class SwitcherView: NSView {
         let appNameRect = NSRect(x: frame.minX + 38, y: frame.minY + 22, width: frame.width - 44, height: 18)
         let appNameStyle = NSMutableParagraphStyle()
         appNameStyle.lineBreakMode = .byTruncatingTail
+        let textShadow = NSShadow()
+        textShadow.shadowColor = NSColor.black.withAlphaComponent(0.7)
+        textShadow.shadowOffset = NSSize(width: 0, height: -1)
+        textShadow.shadowBlurRadius = 3
         let appNameAttrs: [NSAttributedString.Key: Any] = [
             .font: NSFont.systemFont(ofSize: 12, weight: .medium),
             .foregroundColor: NSColor.white,
-            .paragraphStyle: appNameStyle
+            .paragraphStyle: appNameStyle,
+            .shadow: textShadow
         ]
         NSAttributedString(string: windowInfo.appName, attributes: appNameAttrs).draw(in: appNameRect)
 
@@ -226,7 +231,8 @@ class SwitcherView: NSView {
         let titleAttrs: [NSAttributedString.Key: Any] = [
             .font: NSFont.systemFont(ofSize: 10),
             .foregroundColor: NSColor.white.withAlphaComponent(0.55),
-            .paragraphStyle: titleStyle
+            .paragraphStyle: titleStyle,
+            .shadow: textShadow
         ]
         NSAttributedString(string: windowInfo.windowTitle, attributes: titleAttrs).draw(in: titleRect)
 
@@ -248,19 +254,15 @@ class SwitcherView: NSView {
             let circlePath = NSBezierPath(ovalIn: cbRect)
             NSColor.black.withAlphaComponent(0.5).setFill()
             circlePath.fill()
-            let symConfig = NSImage.SymbolConfiguration(pointSize: 9, weight: .medium)
-                .applying(NSImage.SymbolConfiguration(paletteColors: [.white]))
-            if let img = NSImage(systemSymbolName: "xmark", accessibilityDescription: nil)?
-                .withSymbolConfiguration(symConfig) {
-                let iconSize = img.size
-                let iconRect = NSRect(
-                    x: cbRect.midX - iconSize.width / 2,
-                    y: cbRect.midY - iconSize.height / 2,
-                    width: iconSize.width,
-                    height: iconSize.height
-                )
-                img.draw(in: iconRect, from: .zero, operation: .sourceOver, fraction: 1.0)
-            }
+            let inset: CGFloat = 3.5
+            let cross = NSBezierPath()
+            cross.move(to: NSPoint(x: cbRect.midX - inset, y: cbRect.midY - inset))
+            cross.line(to: NSPoint(x: cbRect.midX + inset, y: cbRect.midY + inset))
+            cross.move(to: NSPoint(x: cbRect.midX + inset, y: cbRect.midY - inset))
+            cross.line(to: NSPoint(x: cbRect.midX - inset, y: cbRect.midY + inset))
+            cross.lineWidth = 1.5
+            NSColor.white.setStroke()
+            cross.stroke()
         }
     }
 
