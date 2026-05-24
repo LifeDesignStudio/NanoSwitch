@@ -10,3 +10,8 @@ DerivedData/
 
 # macOS
 .DS_Store
+
+# Internal development files
+CLAUDE.md
+DEVELOPMENT_CHECKPOINT.md
+NanoSwitch v1.0.md
