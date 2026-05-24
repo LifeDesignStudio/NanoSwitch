@@ -24,7 +24,8 @@
   - **Live thumbnail previews** — see the content before you switch
   - **Current Space only** — no clutter from other desktops                                                                                                                             
   - **Instant display** — icons appear immediately, thumbnails load in background
-  - **Lightweight** — lives in your menu bar, runs silently in the background                                                                                                           
+  - **Lightweight** — lives in your menu bar, runs silently in the background
+  - **Close windows directly** — hover any thumbnail and click ×, or press `W`
                                                             
   ---                                                                                                                                                                                   
                                                             
@@ -53,16 +54,31 @@
 
   ## Usage
 
-  | Action | Key |                                                                                                                                                                      
+  | Action | Key |
   |--------|-----|
-  | Open switcher / Next window | `Cmd+Tab` |                                                                                                                                           
-  | Previous window | `Cmd+Shift+Tab` |                                                                                                                                                 
+  | Open switcher / Next window | `Cmd+Tab` |
+  | Previous window | `Cmd+Shift+Tab` |
   | Navigate | Arrow keys |
-  | Switch | Release Cmd |                                                                                                                                                              
-  | Cancel | `Escape` |                                                                                                                                                                 
+  | Switch | Release Cmd |
+  | Cancel | `Escape` |
+  | Close selected window | `W` |                                                                                                                                                                 
    
-  ---                                                                                                                                                                                   
-                                                            
+  ---
+
+  ## Troubleshooting
+
+  **Thumbnails not showing / only app icons appear**
+
+  Make sure `NanoSwitch.app` is in `/Applications/` (not `~/Applications/`).
+  Screen Recording thumbnails silently fail when the app runs from a user Applications folder.
+  If you launched from the wrong location, NanoSwitch will offer to move itself automatically on next launch.
+
+  **App blocked by macOS Gatekeeper**
+
+  Right-click (or Control-click) the app → **Open** → **Open**.
+
+  ---
+
   ## Support
 
   NanoSwitch is free and ad-free.

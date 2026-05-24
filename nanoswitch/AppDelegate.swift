@@ -13,6 +13,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         #endif
         NSApp.setActivationPolicy(.accessory)
 
+        checkInstallLocation()
+
         // メニューバーアイコンは権限状態に関わらず常に最初に表示する
         setupStatusItem()
 
@@ -211,6 +213,37 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     @objc private func openScreenRecordingSettings() {
         if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture") {
             NSWorkspace.shared.open(url)
+        }
+    }
+
+    // MARK: - Install Location Check
+
+    private func checkInstallLocation() {
+        let path = Bundle.main.bundlePath
+        guard !path.hasPrefix("/Applications/") else { return }
+
+        let alert = NSAlert()
+        alert.messageText = "Move NanoSwitch to Applications?"
+        alert.informativeText = "NanoSwitch must run from /Applications/ for thumbnail previews to work.\n\nMove it there now?"
+        alert.addButton(withTitle: "Move to Applications")
+        alert.addButton(withTitle: "Not Now")
+        alert.alertStyle = .warning
+
+        guard alert.runModal() == .alertFirstButtonReturn else { return }
+
+        let dest = "/Applications/NanoSwitch.app"
+        do {
+            if FileManager.default.fileExists(atPath: dest) {
+                try FileManager.default.removeItem(atPath: dest)
+            }
+            try FileManager.default.moveItem(atPath: path, toPath: dest)
+            let task = Process()
+            task.launchPath = "/usr/bin/open"
+            task.arguments = [dest]
+            try task.run()
+            NSApp.terminate(nil)
+        } catch {
+            NSLog("[NanoSwitch] ⚠️ 移動失敗: \(error)")
         }
     }
 
