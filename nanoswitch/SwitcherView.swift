@@ -208,6 +208,17 @@ class SwitcherView: NSView {
             thumbnail.draw(in: drawRect, from: .zero, operation: .sourceOver, fraction: 1.0)
         }
 
+        // テキスト領域のグラジェントオーバーレイ（背景色に関わらず視認性を確保）
+        NSGraphicsContext.saveGraphicsState()
+        let overlayClip = NSBezierPath(roundedRect: frame, xRadius: 8, yRadius: 8)
+        overlayClip.setClip()
+        if let gradient = NSGradient(starting: NSColor.black.withAlphaComponent(0.6),
+                                      ending: NSColor.clear) {
+            gradient.draw(in: NSRect(x: frame.minX, y: frame.minY,
+                                     width: frame.width, height: 70), angle: 90)
+        }
+        NSGraphicsContext.restoreGraphicsState()
+
         // アプリ名
         let appNameRect = NSRect(x: frame.minX + 38, y: frame.minY + 22, width: frame.width - 44, height: 18)
         let appNameStyle = NSMutableParagraphStyle()
