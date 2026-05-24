@@ -101,6 +101,11 @@ class SwitcherWindowController {
         activateWindow(windowInfo)
     }
 
+    func closeSelectedWindow() {
+        guard let windowInfo = switcherView?.activateSelectedWindow() else { return }
+        onClose?(windowInfo)
+    }
+
     // MARK: - Panel Setup
 
     private func createPanel() {

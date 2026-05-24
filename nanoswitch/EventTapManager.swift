@@ -106,6 +106,9 @@ class EventTapManager {
         case 53: // Escape
             DispatchQueue.main.async { [weak self] in self?.cancelSwitcher() }
             return nil
+        case 13: // W — close selected window
+            DispatchQueue.main.async { [weak self] in self?.switcherController.closeSelectedWindow() }
+            return nil
         case 123: // 左矢印
             DispatchQueue.main.async { [weak self] in self?.switcherController.moveSelection(by: -1) }
             return nil

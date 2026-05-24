@@ -10,7 +10,7 @@ class SwitcherView: NSView {
     private static let padding: CGFloat = 12
     static let maxColumns: Int = 5
     private static let iconSize: CGFloat = 28
-    private static let closeButtonSize: CGFloat = 20
+    private static let closeButtonSize: CGFloat = 14
 
     // MARK: - State
 
@@ -110,8 +110,7 @@ class SwitcherView: NSView {
     override func mouseDown(with event: NSEvent) {
         let point = convert(event.locationInWindow, from: nil)
         for (index, _) in windows.enumerated() {
-            let closeVisible = index == hoveredIndex || index == selectedIndex
-            if closeVisible && closeButtonFrame(for: index).contains(point) { return }
+            if index == hoveredIndex && closeButtonFrame(for: index).contains(point) { return }
             if cellFrame(for: index).contains(point) {
                 selectedIndex = index
                 break
@@ -122,8 +121,7 @@ class SwitcherView: NSView {
     override func mouseUp(with event: NSEvent) {
         let point = convert(event.locationInWindow, from: nil)
         for (index, windowInfo) in windows.enumerated() {
-            let closeVisible = index == hoveredIndex || index == selectedIndex
-            if closeVisible && closeButtonFrame(for: index).contains(point) {
+            if index == hoveredIndex && closeButtonFrame(for: index).contains(point) {
                 onClose?(windowInfo)
                 return
             }
@@ -165,7 +163,7 @@ class SwitcherView: NSView {
     private func closeButtonFrame(for index: Int) -> NSRect {
         let cell = cellFrame(for: index)
         return NSRect(
-            x: cell.maxX - Self.closeButtonSize - 4,
+            x: cell.minX + 4,
             y: cell.maxY - Self.closeButtonSize - 4,
             width: Self.closeButtonSize,
             height: Self.closeButtonSize
@@ -239,16 +237,29 @@ class SwitcherView: NSView {
             icon.draw(in: iconRect, from: .zero, operation: .sourceOver, fraction: 1.0)
         }
 
-        // 閉じるボタン（ホバー中または選択中のセルのみ表示）
-        if isHovered || isSelected {
-            let cbX = frame.maxX - Self.closeButtonSize - 4
-            let cbY = frame.maxY - Self.closeButtonSize - 4
-            let cbRect = NSRect(x: cbX, y: cbY, width: Self.closeButtonSize, height: Self.closeButtonSize)
-            let symConfig = NSImage.SymbolConfiguration(pointSize: Self.closeButtonSize, weight: .medium)
+        // 閉じるボタン（ホバー中のセルのみ表示、半透明ダーク円＋白 ×）
+        if isHovered {
+            let cbRect = NSRect(
+                x: frame.minX + 4,
+                y: frame.maxY - Self.closeButtonSize - 4,
+                width: Self.closeButtonSize,
+                height: Self.closeButtonSize
+            )
+            let circlePath = NSBezierPath(ovalIn: cbRect)
+            NSColor.black.withAlphaComponent(0.5).setFill()
+            circlePath.fill()
+            let symConfig = NSImage.SymbolConfiguration(pointSize: 9, weight: .medium)
                 .applying(NSImage.SymbolConfiguration(paletteColors: [.white]))
-            if let img = NSImage(systemSymbolName: "xmark.circle", accessibilityDescription: nil)?
+            if let img = NSImage(systemSymbolName: "xmark", accessibilityDescription: nil)?
                 .withSymbolConfiguration(symConfig) {
-                img.draw(in: cbRect, from: .zero, operation: .sourceOver, fraction: 0.85)
+                let iconSize = img.size
+                let iconRect = NSRect(
+                    x: cbRect.midX - iconSize.width / 2,
+                    y: cbRect.midY - iconSize.height / 2,
+                    width: iconSize.width,
+                    height: iconSize.height
+                )
+                img.draw(in: iconRect, from: .zero, operation: .sourceOver, fraction: 1.0)
             }
         }
     }
