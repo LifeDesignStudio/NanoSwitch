@@ -32,12 +32,7 @@ class WindowManager {
     private var windows: [WindowInfo] = []
 
     init() {
-        setupNotifications()
         updateWindowList()
-    }
-
-    deinit {
-        NSWorkspace.shared.notificationCenter.removeObserver(self)
     }
 
     // MARK: - Public
@@ -68,32 +63,6 @@ class WindowManager {
            CFGetTypeID(ref) == AXUIElementGetTypeID() {
             AXUIElementPerformAction(ref as! AXUIElement, kAXPressAction as CFString)
         }
-    }
-
-    // MARK: - Notifications
-
-    private func setupNotifications() {
-        let nc = NSWorkspace.shared.notificationCenter
-        nc.addObserver(self,
-                       selector: #selector(handleAppNotification(_:)),
-                       name: NSWorkspace.didActivateApplicationNotification,
-                       object: nil)
-        nc.addObserver(self,
-                       selector: #selector(handleAppNotification(_:)),
-                       name: NSWorkspace.didLaunchApplicationNotification,
-                       object: nil)
-        nc.addObserver(self,
-                       selector: #selector(handleAppNotification(_:)),
-                       name: NSWorkspace.didTerminateApplicationNotification,
-                       object: nil)
-        nc.addObserver(self,
-                       selector: #selector(handleAppNotification(_:)),
-                       name: NSWorkspace.activeSpaceDidChangeNotification,
-                       object: nil)
-    }
-
-    @objc private func handleAppNotification(_ notification: Notification) {
-        updateWindowList()
     }
 
     // MARK: - Window List
