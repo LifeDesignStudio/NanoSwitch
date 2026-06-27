@@ -164,6 +164,8 @@ class SwitcherWindowController {
 
     private func activateWindow(_ windowInfo: WindowInfo) {
         let axApp = AXUIElementCreateApplication(windowInfo.ownerPID)
+        // 応答しないアプリで AX 呼び出しがメインスレッドを既定 ~6 秒ブロックするのを防ぐ
+        AXUIElementSetMessagingTimeout(axApp, 1.0)
         var windowsRef: CFTypeRef?
         if AXUIElementCopyAttributeValue(axApp, kAXWindowsAttribute as CFString, &windowsRef) == .success,
            let axWindows = windowsRef as? [AXUIElement] {

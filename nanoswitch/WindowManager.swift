@@ -43,6 +43,8 @@ class WindowManager {
 
     func closeWindow(_ windowInfo: WindowInfo) {
         let axApp = AXUIElementCreateApplication(windowInfo.ownerPID)
+        // 応答しないアプリで AX 呼び出しがメインスレッドを既定 ~6 秒ブロックするのを防ぐ
+        AXUIElementSetMessagingTimeout(axApp, 1.0)
         var windowsRef: CFTypeRef?
         guard AXUIElementCopyAttributeValue(axApp, kAXWindowsAttribute as CFString, &windowsRef) == .success,
               let axWindows = windowsRef as? [AXUIElement] else { return }
@@ -104,14 +106,15 @@ class WindowManager {
             guard let windowID = info[kCGWindowNumber as String] as? CGWindowID,
                   let pid = info[kCGWindowOwnerPID as String] as? pid_t else { continue }
 
-            // CGS Space チェック：現在の Space に属するウィンドウのみ（切替直後も正確）
-            // ウィンドウ単体で照会し、返ってきた Space 配列に activeSpaceID が含まれるか確認
-            let windowSpaces = CGSCopySpacesForWindows(cgsConn, 7, [NSNumber(value: windowID)] as CFArray) as NSArray
-            guard windowSpaces.contains(NSNumber(value: activeSpaceID)) else { continue }
-
             // 通常アプリのみ（ヘルパー・バックグラウンドプロセスを除外）
             guard let app = runningApps.first(where: { $0.processIdentifier == pid }),
                   app.activationPolicy == .regular else { continue }
+
+            // CGS Space チェック：現在の Space に属するウィンドウのみ（切替直後も正確）
+            // ※ CGSCopySpacesForWindows は WindowServer への同期 IPC のため、
+            //   安価なフィルタを全て通過したウィンドウだけを照会して IPC 回数を最小化する（最後に実行）
+            let windowSpaces = CGSCopySpacesForWindows(cgsConn, 7, [NSNumber(value: windowID)] as CFArray) as NSArray
+            guard windowSpaces.contains(NSNumber(value: activeSpaceID)) else { continue }
 
             let appName = info[kCGWindowOwnerName as String] as? String
                           ?? app.localizedName

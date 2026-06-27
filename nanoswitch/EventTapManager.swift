@@ -4,6 +4,7 @@ class EventTapManager {
 
     private var eventTap: CFMachPort?
     private var runLoopSource: CFRunLoopSource?
+    private var watchdogTimer: Timer?
 
     private weak var windowManager: WindowManager?
     private let switcherController = SwitcherWindowController()
@@ -20,6 +21,7 @@ class EventTapManager {
     }
 
     deinit {
+        watchdogTimer?.invalidate()
         if let tap = eventTap        { CGEvent.tapEnable(tap: tap, enable: false) }
         if let src = runLoopSource   { CFRunLoopRemoveSource(CFRunLoopGetMain(), src, .commonModes) }
     }
@@ -58,6 +60,20 @@ class EventTapManager {
         CFRunLoopAddSource(CFRunLoopGetMain(), runLoopSource, .commonModes)
         CGEvent.tapEnable(tap: tap, enable: true)
         NSLog("[NanoSwitch] ✅ EventTap 作成成功（Cmd+Tab横取り有効）")
+        startWatchdog()
+    }
+
+    // MARK: - Watchdog
+    // メインスレッドが一時的にブロックされるなどでタップが無効化され、かつ次のイベントが
+    // コールバックに届かず再有効化の起点を失った場合に備える安全網。2秒ごとに点検する。
+    private func startWatchdog() {
+        watchdogTimer = Timer.scheduledTimer(withTimeInterval: 2.0, repeats: true) { [weak self] _ in
+            guard let self, let tap = self.eventTap else { return }
+            if !CGEvent.tapIsEnabled(tap: tap) {
+                NSLog("[NanoSwitch] ⚠️ Watchdog: EventTap が無効化されていたため再有効化")
+                CGEvent.tapEnable(tap: tap, enable: true)
+            }
+        }
     }
 
     // MARK: - Event Handling
