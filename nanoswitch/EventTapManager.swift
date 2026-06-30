@@ -9,6 +9,7 @@ class EventTapManager {
     private weak var windowManager: WindowManager?
     private let switcherController = SwitcherWindowController()
     private let thumbnailFetcher = ThumbnailFetcher()
+    private var lastThumbnails: [CGWindowID: NSImage] = [:]
 
     // MARK: - Init / Deinit
 
@@ -164,6 +165,7 @@ class EventTapManager {
             for w in windows {
                 if let icon = w.app.icon { initialThumbnails[w.windowID] = icon }
             }
+            lastThumbnails = initialThumbnails
             NSLog("[NanoSwitch] SwitcherWindowController.show() 呼び出し")
             switcherController.show(windows: windows,
                                     thumbnails: initialThumbnails,
@@ -172,6 +174,7 @@ class EventTapManager {
             thumbnailFetcher.fetchThumbnails(for: windows) { [weak self] thumbnails in
                 guard let self, self.switcherController.isVisible else { return }
                 let merged = initialThumbnails.merging(thumbnails) { _, new in new }
+                self.lastThumbnails = merged
                 self.switcherController.updateThumbnails(merged)
             }
         } else {
@@ -195,21 +198,30 @@ class EventTapManager {
         guard let wm = windowManager else { return }
         thumbnailFetcher.cancel()
         wm.closeWindow(windowInfo)
+        // 閉じたウィンドウのキャッシュは即座に破棄
+        lastThumbnails.removeValue(forKey: windowInfo.windowID)
 
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { [weak self] in
             guard let self, self.switcherController.isVisible else { return }
             wm.updateWindowList()
-            let updated = wm.getWindows()
+            // 閉じたウィンドウが CGWindowList になお残っていても確実に除外する
+            // （AX クローズの反映遅延でゴーストのアイコンセルが残るのを防ぐ）
+            let updated = wm.getWindows().filter { $0.windowID != windowInfo.windowID }
             guard !updated.isEmpty else {
                 self.switcherController.dismiss()
                 return
             }
-            var icons: [CGWindowID: NSImage] = [:]
-            for w in updated { if let icon = w.app.icon { icons[w.windowID] = icon } }
-            self.switcherController.show(windows: updated, thumbnails: icons)
+            // 取得済みサムネイルを維持し、アイコンへのちらつきを防ぐ。未取得分のみアイコンで補完
+            var placeholders: [CGWindowID: NSImage] = [:]
+            for w in updated {
+                placeholders[w.windowID] = self.lastThumbnails[w.windowID] ?? w.app.icon
+            }
+            self.lastThumbnails = placeholders
+            self.switcherController.show(windows: updated, thumbnails: placeholders)
             self.thumbnailFetcher.fetchThumbnails(for: updated) { [weak self] thumbnails in
                 guard let self, self.switcherController.isVisible else { return }
-                let merged = icons.merging(thumbnails) { _, new in new }
+                let merged = placeholders.merging(thumbnails) { _, new in new }
+                self.lastThumbnails = merged
                 self.switcherController.updateThumbnails(merged)
             }
         }
