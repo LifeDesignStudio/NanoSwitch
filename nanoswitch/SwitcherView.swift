@@ -49,7 +49,8 @@ class SwitcherView: NSView {
         selectedIndex = (selectedIndex + delta + windows.count) % windows.count
     }
 
-    func activateSelectedWindow() -> WindowInfo? {
+    /// 現在選択中のウィンドウ情報を返す（activate はしない。呼び出し側で activate / close を行う）
+    func selectedWindow() -> WindowInfo? {
         guard selectedIndex < windows.count else { return nil }
         return windows[selectedIndex]
     }
@@ -75,7 +76,7 @@ class SwitcherView: NSView {
         case 126: // 上矢印
             moveSelection(by: -Self.maxColumns)
         case 36: // Return
-            if let windowInfo = activateSelectedWindow() {
+            if let windowInfo = selectedWindow() {
                 onActivate?(windowInfo)
             }
         case 53: // Escape

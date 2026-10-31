@@ -41,6 +41,33 @@ class WindowManager {
         windows
     }
 
+    /// イベントタップのコールバックから**同期的**に呼べる軽量なスイッチ候補数の概算。
+    /// `updateWindowList()` と違い CGS への per-window IPC（`CGSCopySpacesForWindows`）を行わず、
+    /// 1 回の `CGWindowListCopyWindowInfo` と安価なフィルタのみで件数を見積もる。
+    /// onscreen 判定が実質「現在 Space」を表すため、0/1 件判定には十分な精度。
+    /// Cmd+Tab 押下時に「スイッチャーを出すか標準動作に委ねるか」を遅延なく決めるために使う。
+    func switchableWindowCountEstimate() -> Int {
+        let options = CGWindowListOption([.optionOnScreenOnly, .excludeDesktopElements])
+        guard let rawList = CGWindowListCopyWindowInfo(options, kCGNullWindowID) as? [[String: Any]] else {
+            return 0
+        }
+        let runningApps = NSWorkspace.shared.runningApplications
+        var count = 0
+        for info in rawList {
+            guard let layer = info[kCGWindowLayer as String] as? Int, layer == 0 else { continue }
+            guard let isOnscreen = info[kCGWindowIsOnscreen as String] as? Bool, isOnscreen else { continue }
+            guard let alpha = info[kCGWindowAlpha as String] as? Double, alpha > 0 else { continue }
+            if let bd = info[kCGWindowBounds as String] as? [String: CGFloat] {
+                guard (bd["Width"] ?? 0) >= 100, (bd["Height"] ?? 0) >= 60 else { continue }
+            }
+            guard let pid = info[kCGWindowOwnerPID as String] as? pid_t,
+                  let app = runningApps.first(where: { $0.processIdentifier == pid }),
+                  app.activationPolicy == .regular else { continue }
+            count += 1
+        }
+        return count
+    }
+
     func closeWindow(_ windowInfo: WindowInfo) {
         let axApp = AXUIElementCreateApplication(windowInfo.ownerPID)
         // 応答しないアプリで AX 呼び出しがメインスレッドを既定 ~6 秒ブロックするのを防ぐ

@@ -1,6 +1,13 @@
 import Cocoa
+import ServiceManagement
 
 class AppDelegate: NSObject, NSApplicationDelegate {
+
+    private enum Link {
+        static let github = URL(string: "https://github.com/LifeDesignStudio/NanoSwitch")!
+    }
+
+    private static let didSetupLoginItemKey = "com.lifedesign.nanoswitch.didSetupLoginItem"
 
     private var statusItem: NSStatusItem?
     private var windowManager: WindowManager?
@@ -58,6 +65,14 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             return
         }
         eventTapManager = EventTapManager(windowManager: wm)
+        // EventTap の状態変化（失効・再有効化）をメニューの健全性表示に反映する
+        eventTapManager?.onStateChange = { [weak self] in
+            DispatchQueue.main.async { self?.refreshMenu() }
+        }
+
+        // 初回起動時はログイン項目に自動登録する（再起動後も Cmd+Tab 乗っ取りを維持）。
+        // メニューのトグルでいつでも解除可能。
+        registerLoginItemIfFirstLaunch()
 
         if CGPreflightScreenCaptureAccess() {
             #if DEBUG
@@ -105,10 +120,58 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func buildMainMenu() {
         let menu = NSMenu()
+        menu.addItem(makeTitleItem())
 
-        let titleItem = NSMenuItem(title: "NanoSwitch", action: nil, keyEquivalent: "")
-        titleItem.isEnabled = false
-        menu.addItem(titleItem)
+        // 健全性：アクセシビリティは許可済みのはずなのに EventTap が無効な場合は警告する
+        // （プライベート API の失効・権限剥奪・OS 側のタップ無効化を可視化）
+        if let etm = eventTapManager, !etm.isActive {
+            let warn = NSMenuItem(title: "⚠️ Cmd+Tab を横取りできていません", action: nil, keyEquivalent: "")
+            warn.isEnabled = false
+            menu.addItem(warn)
+            let hint = NSMenuItem(title: "権限を再付与するか、アプリを再起動してください", action: nil, keyEquivalent: "")
+            hint.isEnabled = false
+            menu.addItem(hint)
+        }
+
+        menu.addItem(NSMenuItem.separator())
+        appendCommonItems(to: menu)
+        statusItem?.menu = menu
+    }
+
+    /// 現在の権限状態に応じて適切なメニューを再構築する（トグル操作後などに呼ぶ）
+    private func refreshMenu() {
+        guard AXIsProcessTrustedWithOptions(nil) else {
+            updateMenuForMissingPermission()
+            return
+        }
+        if CGPreflightScreenCaptureAccess() {
+            buildMainMenu()
+        } else {
+            updateMenuForMissingScreenRecording()
+        }
+    }
+
+    // MARK: - Menu Building Helpers
+
+    private var appVersionString: String {
+        let v = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "?"
+        return "v\(v)"
+    }
+
+    private func makeTitleItem() -> NSMenuItem {
+        let item = NSMenuItem(title: "NanoSwitch \(appVersionString)", action: nil, keyEquivalent: "")
+        item.isEnabled = false
+        return item
+    }
+
+    /// Launch at Login / Support / Help / About / Quit の共通フッターを追加する
+    private func appendCommonItems(to menu: NSMenu) {
+        let loginItem = NSMenuItem(title: "Launch at Login",
+                                   action: #selector(toggleLaunchAtLogin),
+                                   keyEquivalent: "")
+        loginItem.target = self
+        loginItem.state = isLaunchAtLoginEnabled ? .on : .off
+        menu.addItem(loginItem)
 
         menu.addItem(NSMenuItem.separator())
 
@@ -118,14 +181,24 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         supportItem.target = self
         menu.addItem(supportItem)
 
+        let helpItem = NSMenuItem(title: "Help & GitHub…",
+                                  action: #selector(openHelp),
+                                  keyEquivalent: "")
+        helpItem.target = self
+        menu.addItem(helpItem)
+
+        let aboutItem = NSMenuItem(title: "About NanoSwitch",
+                                   action: #selector(showAbout),
+                                   keyEquivalent: "")
+        aboutItem.target = self
+        menu.addItem(aboutItem)
+
         menu.addItem(NSMenuItem.separator())
 
         let quitItem = NSMenuItem(title: "Quit NanoSwitch",
                                   action: #selector(NSApplication.terminate(_:)),
                                   keyEquivalent: "q")
         menu.addItem(quitItem)
-
-        statusItem?.menu = menu
     }
 
     @objc private func showSupportPopover() {
@@ -133,10 +206,59 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         supportPopover.show(relativeTo: button)
     }
 
+    @objc private func openHelp() {
+        NSWorkspace.shared.open(Link.github)
+    }
+
+    @objc private func showAbout() {
+        NSApp.activate(ignoringOtherApps: true)
+        let credits = NSAttributedString(
+            string: "ウィンドウ単位で切り替える macOS 用スイッチャー\n\(Link.github.absoluteString)",
+            attributes: [.font: NSFont.systemFont(ofSize: 11)])
+        NSApp.orderFrontStandardAboutPanel(options: [
+            .applicationName: "NanoSwitch",
+            .credits: credits
+        ])
+    }
+
+    // MARK: - Launch at Login
+
+    private var isLaunchAtLoginEnabled: Bool {
+        SMAppService.mainApp.status == .enabled
+    }
+
+    /// 初回起動時のみ自動でログイン項目へ登録する（以降はユーザーのトグル操作に委ねる）
+    private func registerLoginItemIfFirstLaunch() {
+        guard !UserDefaults.standard.bool(forKey: AppDelegate.didSetupLoginItemKey) else { return }
+        UserDefaults.standard.set(true, forKey: AppDelegate.didSetupLoginItemKey)
+        do {
+            try SMAppService.mainApp.register()
+            #if DEBUG
+            print("[NanoSwitch] ログイン項目に自動登録しました（初回起動）")
+            #endif
+        } catch {
+            NSLog("[NanoSwitch] ⚠️ ログイン項目の自動登録に失敗: %@", error.localizedDescription)
+        }
+    }
+
+    @objc private func toggleLaunchAtLogin() {
+        do {
+            if isLaunchAtLoginEnabled {
+                try SMAppService.mainApp.unregister()
+            } else {
+                try SMAppService.mainApp.register()
+            }
+        } catch {
+            NSLog("[NanoSwitch] ⚠️ Launch at Login の切替に失敗: %@", error.localizedDescription)
+        }
+        refreshMenu()
+    }
+
     /// Accessibility 権限がない場合のメニュー表示
     private func updateMenuForMissingPermission() {
-        guard let menu = statusItem?.menu else { return }
-        menu.removeAllItems()
+        let menu = NSMenu()
+        menu.addItem(makeTitleItem())
+        menu.addItem(NSMenuItem.separator())
 
         let warnItem = NSMenuItem(title: "⚠️ Accessibility 権限が必要です", action: nil, keyEquivalent: "")
         warnItem.isEnabled = false
@@ -154,10 +276,27 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         menu.addItem(NSMenuItem.separator())
 
-        let quitItem = NSMenuItem(title: "終了",
+        let loginItem = NSMenuItem(title: "Launch at Login",
+                                   action: #selector(toggleLaunchAtLogin),
+                                   keyEquivalent: "")
+        loginItem.target = self
+        loginItem.state = isLaunchAtLoginEnabled ? .on : .off
+        menu.addItem(loginItem)
+
+        let aboutItem = NSMenuItem(title: "About NanoSwitch",
+                                   action: #selector(showAbout),
+                                   keyEquivalent: "")
+        aboutItem.target = self
+        menu.addItem(aboutItem)
+
+        menu.addItem(NSMenuItem.separator())
+
+        let quitItem = NSMenuItem(title: "Quit NanoSwitch",
                                   action: #selector(NSApplication.terminate(_:)),
                                   keyEquivalent: "q")
         menu.addItem(quitItem)
+
+        statusItem?.menu = menu
     }
 
     @objc private func openAccessibilitySettings() {
@@ -169,10 +308,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     /// スクリーン収録権限がない場合のメニュー表示（スイッチャー自体は動作する）
     private func updateMenuForMissingScreenRecording() {
         let menu = NSMenu()
-
-        let titleItem = NSMenuItem(title: "NanoSwitch", action: nil, keyEquivalent: "")
-        titleItem.isEnabled = false
-        menu.addItem(titleItem)
+        menu.addItem(makeTitleItem())
         menu.addItem(NSMenuItem.separator())
 
         let warnItem = NSMenuItem(title: "⚠️ スクリーン収録権限が必要です", action: nil, keyEquivalent: "")
@@ -194,19 +330,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         menu.addItem(hintItem)
 
         menu.addItem(NSMenuItem.separator())
-
-        let supportItem = NSMenuItem(title: "☕ Support NanoSwitch",
-                                     action: #selector(showSupportPopover),
-                                     keyEquivalent: "")
-        supportItem.target = self
-        menu.addItem(supportItem)
-
-        menu.addItem(NSMenuItem.separator())
-
-        let quitItem = NSMenuItem(title: "Quit NanoSwitch",
-                                  action: #selector(NSApplication.terminate(_:)),
-                                  keyEquivalent: "q")
-        menu.addItem(quitItem)
+        appendCommonItems(to: menu)
         statusItem?.menu = menu
     }
 
