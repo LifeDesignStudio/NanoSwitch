@@ -1,5 +1,7 @@
 # NanoSwitch
 
+English · [日本語](README.ja.md)
+
 **See every window. Switch in one move.**
 
 macOS's built-in Cmd+Tab cycles through apps.
