@@ -1,7 +1,13 @@
 import Cocoa
 import ServiceManagement
+import Sparkle
 
 class AppDelegate: NSObject, NSApplicationDelegate {
+
+    // Sparkle 自動更新コントローラ（SUFeedURL / SUPublicEDKey は Info.plist 参照）。
+    // startingUpdater: true で定期チェックを自動開始する。
+    private let updaterController = SPUStandardUpdaterController(
+        startingUpdater: true, updaterDelegate: nil, userDriverDelegate: nil)
 
     private enum Link {
         static let github = URL(string: "https://github.com/LifeDesignStudio/NanoSwitch")!
@@ -181,6 +187,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         supportItem.target = self
         menu.addItem(supportItem)
 
+        let updatesItem = NSMenuItem(title: "Check for Updates…",
+                                     action: #selector(checkForUpdates),
+                                     keyEquivalent: "")
+        updatesItem.target = self
+        menu.addItem(updatesItem)
+
         let helpItem = NSMenuItem(title: "Help & GitHub…",
                                   action: #selector(openHelp),
                                   keyEquivalent: "")
@@ -204,6 +216,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     @objc private func showSupportPopover() {
         guard let button = statusItem?.button else { return }
         supportPopover.show(relativeTo: button)
+    }
+
+    @objc private func checkForUpdates() {
+        NSApp.activate(ignoringOtherApps: true)
+        updaterController.checkForUpdates(nil)
     }
 
     @objc private func openHelp() {

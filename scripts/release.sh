@@ -60,12 +60,27 @@ xcrun notarytool submit "$NOTARIZE_ZIP" \
 echo "▶ 5/7 staple（チケットを .app に添付）"
 xcrun stapler staple "$APP"
 
-echo "▶ 6/7 配布 zip 作成"
+echo "▶ 6/8 配布 zip 作成"
 FINAL_ZIP="$DIST_DIR/$APP_DISPLAY_NAME.zip"
 rm -f "$FINAL_ZIP"
+# 公証用 zip は appcast 走査に混ざらないよう削除
+rm -f "$NOTARIZE_ZIP"
 ditto -c -k --keepParent "$APP" "$FINAL_ZIP"
 
-echo "▶ 7/7 検証"
+echo "▶ 7/8 Sparkle appcast.xml 生成（EdDSA 署名付き）"
+GENERATE_APPCAST="$(find DerivedData -path '*artifacts/sparkle*/bin/generate_appcast' 2>/dev/null | head -1)"
+if [ -z "$GENERATE_APPCAST" ]; then
+  echo "⚠️ generate_appcast が見つかりません（Sparkle パッケージ未解決）。appcast 生成をスキップします。"
+else
+  VERSION="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$APP/Contents/Info.plist")"
+  DL_PREFIX="https://github.com/LifeDesignStudio/NanoSwitch/releases/download/v${VERSION}/"
+  # dist 内の .zip を走査し、各 app の版を読んで署名付き appcast.xml を書き出す。
+  # enclosure URL は <DL_PREFIX><zip 名>（= GitHub Releases の当該タグの添付 URL）になる。
+  "$GENERATE_APPCAST" --download-url-prefix "$DL_PREFIX" "$DIST_DIR"
+  echo "   appcast = $DIST_DIR/appcast.xml （リリース v${VERSION} に $FINAL_ZIP と一緒に添付）"
+fi
+
+echo "▶ 8/8 検証"
 echo "--- codesign --verify ---"
 codesign --verify --deep --strict --verbose=2 "$APP"
 echo "--- spctl (Gatekeeper) ---"
@@ -74,5 +89,9 @@ echo "--- stapler validate ---"
 xcrun stapler validate "$APP"
 
 echo ""
-echo "✅ 完了: $FINAL_ZIP"
-echo "   これを GitHub Releases にアップロードしてください。"
+echo "✅ 完了"
+echo "   GitHub Releases（タグ v<version>）に以下2つを添付してください:"
+echo "     - $FINAL_ZIP"
+echo "     - $DIST_DIR/appcast.xml"
+echo "   SUFeedURL は releases/latest/download/appcast.xml を指すため、"
+echo "   最新リリースに appcast.xml を添付すれば既存ユーザーに更新が配信されます。"

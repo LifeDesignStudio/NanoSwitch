@@ -17,5 +17,12 @@
 	<string>ウィンドウの監視と切り替えに使用します</string>
 	<key>NSScreenCaptureUsageDescription</key>
 	<string>ウィンドウのサムネイル表示に使用します</string>
+	<!-- Sparkle 自動更新 -->
+	<key>SUFeedURL</key>
+	<string>https://github.com/LifeDesignStudio/NanoSwitch/releases/latest/download/appcast.xml</string>
+	<key>SUPublicEDKey</key>
+	<string>s6k5e1ohj2sblllx6uXfgoznO+xfR785qR1dE46ju9c=</string>
+	<key>SUEnableAutomaticChecks</key>
+	<true/>
 </dict>
 </plist>
