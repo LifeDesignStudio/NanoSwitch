@@ -44,6 +44,16 @@ Both permissions are requested on first launch and can be granted without restar
 
 ## Installation
 
+### Homebrew (recommended)
+
+```sh
+brew install --cask lifedesignstudio/tap/nanoswitch
+```
+
+> The first time you install from this tap, Homebrew may ask you to trust it — just follow the prompt.
+
+### Manual (DMG)
+
 1. Download `NanoSwitch.dmg` from [Releases](../../releases/latest)
 2. Open the DMG and **drag `NanoSwitch` onto the `Applications` folder**
    > ⚠️ Install into the system `/Applications` — not `~/Applications/`. Screen Recording thumbnails silently fail if NanoSwitch runs from a user Applications folder.

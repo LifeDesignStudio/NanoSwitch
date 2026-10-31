@@ -44,6 +44,16 @@ NanoSwitch はすべての**ウィンドウ**をサムネイルのグリッド�
 
 ## インストール
 
+### Homebrew（推奨）
+
+```sh
+brew install --cask lifedesignstudio/tap/nanoswitch
+```
+
+> この tap から初めてインストールするとき、Homebrew が信頼の確認を求めることがあります。表示に従って許可してください。
+
+### 手動（DMG）
+
 1. [Releases](../../releases/latest) から `NanoSwitch.dmg` をダウンロード
 2. DMG を開き、`NanoSwitch` を `Applications` フォルダに**ドラッグ**
    > ⚠️ システムの `/Applications` に入れてください（`~/Applications/` は不可）。ユーザーの Applications フォルダから動かすと、画面収録を許可してもサムネイルがサイレントに失敗します。
