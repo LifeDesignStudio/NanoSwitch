@@ -363,28 +363,18 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let path = Bundle.main.bundlePath
         guard !path.hasPrefix("/Applications/") else { return }
 
+        // DMG で /Applications への配置を誘導するため、プログラム的な自動移動は行わず警告のみ。
+        // ※ translocation 下では Bundle.main.bundlePath が読み取り専用の乱数パスになり、
+        //   move が破綻するため撤去（DMG のドラッグ導線で最初から正しい場所に入れてもらう）。
         let alert = NSAlert()
-        alert.messageText = "Move NanoSwitch to Applications?"
-        alert.informativeText = "NanoSwitch must run from /Applications/ for thumbnail previews to work.\n\nMove it there now?"
-        alert.addButton(withTitle: "Move to Applications")
-        alert.addButton(withTitle: "Not Now")
+        alert.messageText = "Move NanoSwitch to Applications"
+        alert.informativeText = "NanoSwitch must run from the /Applications folder for window thumbnails to work.\n\nQuit, drag NanoSwitch into /Applications, then reopen it."
+        alert.addButton(withTitle: "Quit")
+        alert.addButton(withTitle: "Continue Anyway")
         alert.alertStyle = .warning
 
-        guard alert.runModal() == .alertFirstButtonReturn else { return }
-
-        let dest = "/Applications/NanoSwitch.app"
-        do {
-            if FileManager.default.fileExists(atPath: dest) {
-                try FileManager.default.removeItem(atPath: dest)
-            }
-            try FileManager.default.moveItem(atPath: path, toPath: dest)
-            let task = Process()
-            task.launchPath = "/usr/bin/open"
-            task.arguments = [dest]
-            try task.run()
+        if alert.runModal() == .alertFirstButtonReturn {
             NSApp.terminate(nil)
-        } catch {
-            NSLog("[NanoSwitch] ⚠️ 移動失敗: \(error)")
         }
     }
 

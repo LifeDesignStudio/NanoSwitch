@@ -60,38 +60,57 @@ xcrun notarytool submit "$NOTARIZE_ZIP" \
 echo "▶ 5/7 staple（チケットを .app に添付）"
 xcrun stapler staple "$APP"
 
-echo "▶ 6/8 配布 zip 作成"
+echo "▶ 6/9 配布 zip 作成（Sparkle 更新用）"
 FINAL_ZIP="$DIST_DIR/$APP_DISPLAY_NAME.zip"
 rm -f "$FINAL_ZIP"
 # 公証用 zip は appcast 走査に混ざらないよう削除
 rm -f "$NOTARIZE_ZIP"
 ditto -c -k --keepParent "$APP" "$FINAL_ZIP"
 
-echo "▶ 7/8 Sparkle appcast.xml 生成（EdDSA 署名付き）"
+echo "▶ 7/9 Sparkle appcast.xml 生成（EdDSA 署名付き）"
 GENERATE_APPCAST="$(find DerivedData -path '*artifacts/sparkle*/bin/generate_appcast' 2>/dev/null | head -1)"
+VERSION="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$APP/Contents/Info.plist")"
 if [ -z "$GENERATE_APPCAST" ]; then
   echo "⚠️ generate_appcast が見つかりません（Sparkle パッケージ未解決）。appcast 生成をスキップします。"
 else
-  VERSION="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$APP/Contents/Info.plist")"
   DL_PREFIX="https://github.com/LifeDesignStudio/NanoSwitch/releases/download/v${VERSION}/"
+  # 既存 appcast を消してクリーン生成（latest/download 方式では最新版のみ載せれば十分で、
+  # 過去バージョンの stale な enclosure を残さない）。
+  rm -f "$DIST_DIR/appcast.xml"
   # dist 内の .zip を走査し、各 app の版を読んで署名付き appcast.xml を書き出す。
   # enclosure URL は <DL_PREFIX><zip 名>（= GitHub Releases の当該タグの添付 URL）になる。
   "$GENERATE_APPCAST" --download-url-prefix "$DL_PREFIX" "$DIST_DIR"
-  echo "   appcast = $DIST_DIR/appcast.xml （リリース v${VERSION} に $FINAL_ZIP と一緒に添付）"
+  echo "   appcast = $DIST_DIR/appcast.xml"
 fi
 
-echo "▶ 8/8 検証"
-echo "--- codesign --verify ---"
+echo "▶ 8/9 DMG 作成（/Applications エイリアス付き）→ 署名・公証・staple"
+DEVID="Developer ID Application: Yoshiyuki Koyama (77J96L5DUB)"
+DMG="$DIST_DIR/$APP_DISPLAY_NAME.dmg"
+DMG_STAGE="$BUILD_DIR/dmg"
+rm -rf "$DMG_STAGE"; mkdir -p "$DMG_STAGE"
+ditto "$APP" "$DMG_STAGE/$APP_DISPLAY_NAME.app"   # staple 済みアプリをそのまま同梱
+ln -s /Applications "$DMG_STAGE/Applications"      # ドラッグ&ドロップ導線
+rm -f "$DMG"
+hdiutil create -volname "$APP_DISPLAY_NAME" -srcfolder "$DMG_STAGE" -ov -format UDZO "$DMG" >/dev/null
+codesign --force --sign "$DEVID" --timestamp "$DMG"
+xcrun notarytool submit "$DMG" --keychain-profile "$NOTARY_PROFILE" --wait
+xcrun stapler staple "$DMG"
+
+echo "▶ 9/9 検証"
+echo "--- app: codesign --verify ---"
 codesign --verify --deep --strict --verbose=2 "$APP"
-echo "--- spctl (Gatekeeper) ---"
+echo "--- app: spctl ---"
 spctl -a -vvv -t exec "$APP"
-echo "--- stapler validate ---"
+echo "--- app: stapler validate ---"
 xcrun stapler validate "$APP"
+echo "--- dmg: spctl ---"
+spctl -a -vvv -t open --context context:primary-signature "$DMG"
+echo "--- dmg: stapler validate ---"
+xcrun stapler validate "$DMG"
 
 echo ""
-echo "✅ 完了"
-echo "   GitHub Releases（タグ v<version>）に以下2つを添付してください:"
-echo "     - $FINAL_ZIP"
-echo "     - $DIST_DIR/appcast.xml"
-echo "   SUFeedURL は releases/latest/download/appcast.xml を指すため、"
-echo "   最新リリースに appcast.xml を添付すれば既存ユーザーに更新が配信されます。"
+echo "✅ 完了（v${VERSION}）"
+echo "   GitHub Releases（タグ v${VERSION}）に以下を添付してください:"
+echo "     - $DMG              ← 初回手動インストール用（/Applications へ誘導）"
+echo "     - $FINAL_ZIP        ← Sparkle 自動更新用"
+echo "     - $DIST_DIR/appcast.xml  ← Sparkle フィード（latest/download が参照）"

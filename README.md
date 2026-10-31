@@ -42,10 +42,12 @@ Both permissions are requested on first launch and can be granted without restar
 
 ## Installation
 
-1. Download `NanoSwitch.zip` from [Releases](../../releases/latest)
-2. Unzip and move `NanoSwitch.app` to `/Applications/` (the system Applications folder)
-   > ⚠️ Do **not** place it in `~/Applications/` — Screen Recording thumbnails will silently fail if the app runs from your user Applications folder.
-3. Launch the app and grant the two permissions when prompted
+1. Download `NanoSwitch.dmg` from [Releases](../../releases/latest)
+2. Open the DMG and **drag `NanoSwitch` onto the `Applications` folder**
+   > ⚠️ Install into the system `/Applications` — not `~/Applications/`. Screen Recording thumbnails silently fail if NanoSwitch runs from a user Applications folder.
+3. Launch NanoSwitch from Applications and grant the two permissions when prompted
+
+Updates after this are automatic (via Sparkle) — or use **Check for Updates…** in the menu.
 
 **If macOS blocks the app on first launch:**
 Right-click `NanoSwitch.app` → **Open**, then confirm. (Or open **System Settings → Privacy & Security** and click **Open Anyway**.)
