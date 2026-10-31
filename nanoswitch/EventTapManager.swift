@@ -11,6 +11,15 @@ class EventTapManager {
     private let thumbnailFetcher = ThumbnailFetcher()
     private var lastThumbnails: [CGWindowID: NSImage] = [:]
 
+    /// EventTap の状態が変化したときに通知する（メニューの健全性表示更新用）
+    var onStateChange: (() -> Void)?
+
+    /// Cmd+Tab 横取りが現在有効か（タップが生成済みかつ enable 状態）
+    var isActive: Bool {
+        guard let tap = eventTap else { return false }
+        return CGEvent.tapIsEnabled(tap: tap)
+    }
+
     // MARK: - Init / Deinit
 
     init(windowManager: WindowManager) {
@@ -28,7 +37,9 @@ class EventTapManager {
     }
 
     // MARK: - EventTap Setup
-    // cghidEventTap（HIDレベル）で Cmd+Tab を含む全キーイベントを Dock より前に横取りする
+    // cgSessionEventTap（セッションレベル）で Cmd+Tab を含むキーイベントを横取りする。
+    // ※ 以前 cghidEventTap（HIDレベル）を使ったが tapDisabledByTimeout 多発で安定性が低下したため
+    //   cgSessionEventTap に戻した経緯あり（DEVELOPMENT_CHECKPOINT.md §12 参照）。
 
     private func setupEventTap() {
         let mask: CGEventMask =
@@ -53,6 +64,7 @@ class EventTapManager {
 
         guard let tap else {
             NSLog("[NanoSwitch] ❌ EventTap 作成失敗。Accessibility権限を確認してください。")
+            onStateChange?()
             return
         }
 
@@ -61,6 +73,7 @@ class EventTapManager {
         CFRunLoopAddSource(CFRunLoopGetMain(), runLoopSource, .commonModes)
         CGEvent.tapEnable(tap: tap, enable: true)
         NSLog("[NanoSwitch] ✅ EventTap 作成成功（Cmd+Tab横取り有効）")
+        onStateChange?()
         startWatchdog()
     }
 
@@ -103,10 +116,21 @@ class EventTapManager {
         let hasCmd   = event.flags.contains(.maskCommand)
         let hasShift = event.flags.contains(.maskShift)
 
-        // Cmd+Tab / Cmd+Shift+Tab を消費してスイッチャーを起動
-        // ※ cghidEventTap は Dock より前に処理されるため、ここで return nil すると
-        //   システムの App Switcher には届かない
+        // Cmd+Tab / Cmd+Shift+Tab
+        // ※ ここで return nil するとイベントが消費され、システムの App Switcher には届かない
         if keyCode == 48 && hasCmd { // Tab
+            // 既に表示中なら選択を進める（消費）
+            if switcherController.isVisible {
+                DispatchQueue.main.async { [weak self] in self?.showOrAdvanceSwitcher(reverse: hasShift) }
+                return nil
+            }
+            // 未表示：現在 Space のスイッチ候補が 2 件未満なら消費せず標準スイッチャーに委ねる。
+            // NanoSwitch は現在 Space 限定のため、窓が 1 枚以下のときは Space をまたげる
+            // 標準 Cmd+Tab の方が有用。かつ候補 0 件で Cmd+Tab が「無反応」になる不具合を防ぐ。
+            let estimate = windowManager?.switchableWindowCountEstimate() ?? 0
+            guard estimate >= 2 else {
+                return Unmanaged.passRetained(event) // 標準 App Switcher に委ねる
+            }
             DispatchQueue.main.async { [weak self] in
                 self?.showOrAdvanceSwitcher(reverse: hasShift)
             }

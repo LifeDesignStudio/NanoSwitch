@@ -96,13 +96,13 @@ class SwitcherWindowController {
     }
 
     func activateSelectedWindow() {
-        guard let windowInfo = switcherView?.activateSelectedWindow() else { return }
+        guard let windowInfo = switcherView?.selectedWindow() else { return }
         dismiss()
         activateWindow(windowInfo)
     }
 
     func closeSelectedWindow() {
-        guard let windowInfo = switcherView?.activateSelectedWindow() else { return }
+        guard let windowInfo = switcherView?.selectedWindow() else { return }
         onClose?(windowInfo)
     }
 

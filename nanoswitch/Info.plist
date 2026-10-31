@@ -2,6 +2,9 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<!-- 表示名（製品名は小文字 nanoswitch だが UI には NanoSwitch と表示する） -->
+	<key>CFBundleDisplayName</key>
+	<string>NanoSwitch</string>
 	<!-- メニューバー専用アプリ（Dockアイコン非表示） -->
 	<key>LSUIElement</key>
 	<true/>
@@ -14,5 +17,12 @@
 	<string>ウィンドウの監視と切り替えに使用します</string>
 	<key>NSScreenCaptureUsageDescription</key>
 	<string>ウィンドウのサムネイル表示に使用します</string>
+	<!-- Sparkle 自動更新 -->
+	<key>SUFeedURL</key>
+	<string>https://github.com/LifeDesignStudio/NanoSwitch/releases/latest/download/appcast.xml</string>
+	<key>SUPublicEDKey</key>
+	<string>s6k5e1ohj2sblllx6uXfgoznO+xfR785qR1dE46ju9c=</string>
+	<key>SUEnableAutomaticChecks</key>
+	<true/>
 </dict>
 </plist>
