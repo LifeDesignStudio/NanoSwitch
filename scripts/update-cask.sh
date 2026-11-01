@@ -39,7 +39,7 @@ sed -i '' -E "s/^  version \".*\"/  version \"$VERSION\"/" "$CASK"
 sed -i '' -E "s/^  sha256 \".*\"/  sha256 \"$SHA\"/" "$CASK"
 
 if git -C "$TMP/tap" diff --quiet; then
-  echo "ℹ️ 変更なし（既に $VERSION / $SHA）。何もしません。"
+  echo "ℹ️ 変更なし（既に ${VERSION} / ${SHA}）。何もしません。"
   exit 0
 fi
 
