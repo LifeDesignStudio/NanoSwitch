@@ -14,10 +14,20 @@ class SwitcherWindowController {
     private var currentWindows: [WindowInfo] = []
     var onClose: ((WindowInfo) -> Void)?
 
+    // 表示状態はイベントタップ（専用スレッド）から参照されるため、NSPanel.isVisible を
+    // 非メインスレッドで直接読まず、メインで更新するフラグをロック越しに公開する。
+    private let visibilityLock = NSLock()
+    private var _isVisible = false
+
     // MARK: - Public
 
     var isVisible: Bool {
-        return panel?.isVisible ?? false
+        visibilityLock.lock(); defer { visibilityLock.unlock() }
+        return _isVisible
+    }
+
+    private func setVisible(_ value: Bool) {
+        visibilityLock.lock(); _isVisible = value; visibilityLock.unlock()
     }
 
     func show(windows: [WindowInfo],
@@ -57,6 +67,7 @@ class SwitcherWindowController {
         let alreadyVisible = isVisible
         if !alreadyVisible { panel?.alphaValue = 0 }
         panel?.orderFrontRegardless()
+        setVisible(true)
         panel?.makeFirstResponder(switcherView)
         if !alreadyVisible {
             NSAnimationContext.runAnimationGroup { context in
@@ -80,6 +91,7 @@ class SwitcherWindowController {
             self.panel?.animator().alphaValue = 0.0
         }, completionHandler: { [weak self] in
             self?.panel?.orderOut(nil)
+            self?.setVisible(false)
             self?.panel?.alphaValue = 1.0
             self?.currentWindows = []
             self?.switcherView?.configure(windows: [], thumbnails: [:])

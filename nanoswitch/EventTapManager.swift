@@ -5,6 +5,8 @@ class EventTapManager {
     private var eventTap: CFMachPort?
     private var runLoopSource: CFRunLoopSource?
     private var watchdogTimer: Timer?
+    private var tapThread: Thread?
+    private var tapRunLoop: CFRunLoop?
 
     private weak var windowManager: WindowManager?
     private let switcherController = SwitcherWindowController()
@@ -32,8 +34,12 @@ class EventTapManager {
 
     deinit {
         watchdogTimer?.invalidate()
-        if let tap = eventTap        { CGEvent.tapEnable(tap: tap, enable: false) }
-        if let src = runLoopSource   { CFRunLoopRemoveSource(CFRunLoopGetMain(), src, .commonModes) }
+        if let tap = eventTap { CGEvent.tapEnable(tap: tap, enable: false) }
+        if let rl = tapRunLoop {
+            if let src = runLoopSource { CFRunLoopRemoveSource(rl, src, .commonModes) }
+            CFRunLoopStop(rl) // 専用スレッドの CFRunLoopRun() を抜けさせる
+        }
+        tapThread?.cancel()
     }
 
     // MARK: - EventTap Setup
@@ -70,9 +76,24 @@ class EventTapManager {
 
         eventTap = tap
         runLoopSource = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, tap, 0)
-        CFRunLoopAddSource(CFRunLoopGetMain(), runLoopSource, .commonModes)
-        CGEvent.tapEnable(tap: tap, enable: true)
-        NSLog("[NanoSwitch] ✅ EventTap 作成成功（Cmd+Tab横取り有効）")
+
+        // イベントタップは専用スレッドの run loop で駆動する。
+        // メインスレッドが重い処理（多数ウィンドウの列挙・CGS IPC・サムネイル取得）で
+        // ブロックされてもタップが飢餓状態にならず、tapDisabledByTimeout による
+        // Cmd+Tab の取りこぼし（多数アプリ/タブ使用時に無反応になる症状）を防ぐ。
+        let thread = Thread { [weak self] in
+            guard let self, let source = self.runLoopSource else { return }
+            self.tapRunLoop = CFRunLoopGetCurrent()
+            CFRunLoopAddSource(CFRunLoopGetCurrent(), source, .commonModes)
+            CGEvent.tapEnable(tap: tap, enable: true)
+            CFRunLoopRun() // CFRunLoopStop まで現在の run loop を回してタップを捌き続ける
+        }
+        thread.name = "com.nanoswitch.eventtap"
+        thread.qualityOfService = .userInteractive
+        tapThread = thread
+        thread.start()
+
+        NSLog("[NanoSwitch] ✅ EventTap 作成成功（Cmd+Tab横取り有効・専用スレッド駆動）")
         onStateChange?()
         startWatchdog()
     }
