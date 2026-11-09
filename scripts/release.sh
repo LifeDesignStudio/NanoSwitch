@@ -75,8 +75,13 @@ if [ -z "$GENERATE_APPCAST" ]; then
 else
   DL_PREFIX="https://github.com/LifeDesignStudio/NanoSwitch/releases/download/v${VERSION}/"
   # 既存 appcast を消してクリーン生成（latest/download 方式では最新版のみ載せれば十分で、
-  # 過去バージョンの stale な enclosure を残さない）。
+  # 過去バージョンの stale な enclosure を残さない）。delta は使わない方針。
   rm -f "$DIST_DIR/appcast.xml"
+  # generate_appcast は dist 内の全配布物（.zip だけでなく .dmg も）を走査するため、
+  # 前回リリースの dist/*.dmg や古い *.delta が残っていると、それらが stale な
+  # enclosure として appcast に混入する（過去に 1.3.0 の旧 DMG が誤混入した実績あり）。
+  # 今回生成した zip 以外の配布物を事前に掃除し、最新版のみのクリーンな appcast を得る。
+  find "$DIST_DIR" -type f \( -name '*.dmg' -o -name '*.delta' \) -delete
   # dist 内の .zip を走査し、各 app の版を読んで署名付き appcast.xml を書き出す。
   # enclosure URL は <DL_PREFIX><zip 名>（= GitHub Releases の当該タグの添付 URL）になる。
   "$GENERATE_APPCAST" --download-url-prefix "$DL_PREFIX" "$DIST_DIR"
